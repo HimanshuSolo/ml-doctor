@@ -1,12 +1,12 @@
 # MLDoctor — Progress
 ## Completed
 - Stage 0: plan approved with changes (3 fixtures, +test_verify/+test_diagnose, per-stage dep approval).
+- Scaffold batch applied: 5 files created; .venv (Python 3.14.7) + torch 2.14.1+cpu, sklearn 1.9.1, pytest 9.1.1 installed (verified).
+- Chunk A done: probe passes (15/15 steps, IDENTICAL); harness/runner/CLI/fixtures built; 8/8 pytest pass (verified).
 ## Current state
-- Scaffold batch proposed, unverified: LICENSE, .gitignore, README.md, PROGRESS.md, pyproject.toml.
-- Install commands proposed, not run.
+- Chunk A complete, awaiting your git-diff review. `pip install -e .` still unrun (needs install approval; using PYTHONPATH=src + conftest).
 ## Next steps
-- You review batch; on "next stage", Stage 1: scaffold + CLI skeleton + harness test + 3 fixtures.
+- Chunk B: llm client, budget, diagnose, patch, verify gate + anti-masking.
 ## Known issues
 - License holder is `[Your Name]` placeholder.
-- Install commands and CPU torch index unverified.
-- leakage.py deferred until after Stage 5.
+- Dropped per new rules: leakage fixture/class, multi-experiment loop.
