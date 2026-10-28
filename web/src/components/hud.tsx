@@ -12,13 +12,14 @@ export function stepIndex(s: State): number {
   if (s.phase === "running") return 0;
   return -1;
 }
-export function Hud({ s }: { s: State }) {
+export function Hud({ s, conn = "open" }: { s: State; conn?: "connecting" | "open" | "error" }) {
   const active = stepIndex(s);
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-abyss/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
         <strong className="text-lg tracking-tight">MLDoctor</strong>
         <span aria-label="Server mode" className={`rounded border px-2 py-0.5 font-mono text-xs ${s.mode === "LIVE" ? "border-amberx text-amberx" : s.mode === "MOCK" ? "border-bluex text-bluex" : "border-line text-dim"}`}>{s.mode ?? "MODE —"}</span>
+        <span aria-label="Event stream connection" role="status" className={`rounded border px-2 py-0.5 font-mono text-xs ${conn === "open" ? "border-tealx text-tealx" : conn === "error" ? "border-redx text-redx" : "border-line text-dim"}`}>{conn === "open" ? "● SSE connected" : conn === "error" ? "● SSE disconnected" : "● SSE connecting…"}</span>
         {s.demoPacing && <span className="rounded border border-amberx px-2 py-0.5 font-mono text-xs text-amberx">DEMO PACING</span>}
         <span className="font-mono text-xs text-dim">calls: {s.llmCalls ?? "—"}{s.callCap ? ` / ${s.callCap}` : ""} · tokens: {s.tokensUsed ?? "—"}</span>
         <span className="font-mono text-xs" aria-label="Verification counter">verify: {s.nDone} / {s.nTotal}{s.nFailed ? ` (${s.nFailed} failed)` : ""}</span>
@@ -54,10 +55,10 @@ export function EventLog({ s }: { s: State }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (open && ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [s.events, open]);
   return (
-    <section aria-label="Event log" className="rounded border border-line bg-panel p-4">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="font-semibold underline-offset-2 hover:underline">{open ? "▾" : "▸"} Event log ({s.events.length})</button>
-      {open && <div ref={ref} tabIndex={0} className="mt-2 max-h-56 overflow-y-auto font-mono text-xs leading-5">
-        {s.events.length === 0 ? <p className="text-dim">No server events yet.</p> : s.events.map((e) => <div key={e.seq}>[{new Date(e.ts * 1000).toLocaleTimeString()}] #{e.seq} {e.type}</div>)}
+    <section aria-label="Event log" className="rounded border border-line bg-black/60 p-4">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="label underline-offset-2 hover:underline">{open ? "▾" : "▸"} Event log · {s.events.length}</button>
+      {open && <div ref={ref} tabIndex={0} className="mt-2 max-h-56 overflow-y-auto font-mono text-xs leading-5 text-dim">
+        {s.events.length === 0 ? <p>No server events yet.</p> : s.events.map((e) => <div key={e.seq}><span className="text-tealx">[{new Date(e.ts * 1000).toLocaleTimeString()}]</span> #{e.seq} {e.type}</div>)}
       </div>}
     </section>
   );
