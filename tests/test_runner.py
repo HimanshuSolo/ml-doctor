@@ -45,6 +45,15 @@ def test_error_on_crash():
     assert classify(runs)["symptom"] == "error"
 
 
+def test_error_reason_carries_stderr_tail():
+    runs = [_run(["a"], [1.0], code=1)]
+    runs[0]["stderr"] = "line1\nTraceback (most recent call last):\nNameError: name 'foo' is not defined\n"
+    out = classify(runs)
+    assert out["symptom"] == "error"
+    assert "run 0 exited 1" in out["reason"]
+    assert "NameError" in out["reason"]
+
+
 @pytest.mark.slow
 def test_healthy_fixture_classified_healthy():
     runs = run_baseline(os.path.join(FIX, "healthy.py"), k=3, seed=0)
