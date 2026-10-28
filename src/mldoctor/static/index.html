@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MLDoctor</title><link rel="stylesheet" href="/app.css"></head>
+<body>
+<header><h1>MLDoctor</h1><span id="mock-badge">MOCK — no live calls</span></header>
+<main>
+<section><h2>Run panel</h2>
+<label>Script path (inside allowed dir)<input id="script" value="fixtures/repro.py" size="48"></label>
+<label>Baseline runs (-k) <input id="k" type="number" value="2" min="1" max="10"></label>
+<label>Verify runs <input id="verifyk" type="number" placeholder="auto" min="1" max="10"></label>
+<label><input id="live" type="checkbox" disabled> Live model (needs server live config)</label>
+<button id="run">Run pipeline</button><span id="status">idle</span>
+<a id="report" href="#" style="display:none">Download HTML report</a></section>
+<section><h2>Pipeline tracker</h2><ol id="tracker">
+<li data-step="pipeline_started">Started</li><li data-step="baseline_completed">Baseline</li>
+<li data-step="diagnosed">Diagnosed</li><li data-step="patch_applied">Patched</li>
+<li data-step="verification_completed">Verification</li><li data-step="pipeline_completed">Completed</li></ol></section>
+<section><h2>Verification</h2><div id="counter">0 / 0</div><div id="verdict">no run yet</div></section>
+<section><h2>Evidence — before</h2><div id="evidence-before">—</div></section>
+<section><h2>Evidence — after patch</h2><div id="evidence-after">—</div></section>
+<section><h2>Hypotheses</h2><div id="hypo">—</div></section>
+<section><h2>Diff viewer</h2><pre id="diff">—</pre></section>
+</main><script src="/app.js"></script></body></html>
