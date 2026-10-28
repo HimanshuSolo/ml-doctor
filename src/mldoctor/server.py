@@ -44,7 +44,8 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
     app.state.demo_pacing = False
     if dev_cors or os.environ.get("MLDOCTOR_DEV_CORS") == "1":
         from fastapi.middleware.cors import CORSMiddleware
-        app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:3000"],
+        app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:3000",
+                                                             "http://localhost:3000"],
                            allow_methods=["GET", "POST"], allow_headers=["*"])
 
     def check_token(request):
@@ -84,6 +85,44 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
                 "call_cap": app.state.call_cap,
                 "demo_pacing": app.state.demo_pacing,
                 "allowed_dir": allowed}
+
+    @app.get("/api/fixtures")
+    def fixtures(request: Request):
+        check_token(request)
+        fixdir = os.path.join(allowed, "fixtures")
+        out = []
+        if os.path.isdir(fixdir):
+            for name in sorted(os.listdir(fixdir)):
+                if name.endswith(".py"):
+                    out.append(os.path.relpath(os.path.join(fixdir, name), allowed))
+        return {"fixtures": out}
+
+    @app.post("/api/scripts")
+    async def save_script(request: Request):
+        """Save pasted user code as a runnable .py file inside allowed dir.
+
+        Lets an end user feed their own ML script to the pipeline without
+        touching the repo. Guarded like /api/run: token, basename only, .py
+        extension, size cap; always lands in allowed/uploads/."""
+        check_token(request)
+        body = await request.json()
+        name = str(body.get("name", ""))
+        content = body.get("content", "")
+        if (not name.endswith(".py") or "/" in name or "\\" in name
+                or name in (".", "..") or name.startswith(".")):
+            raise HTTPException(400, "name must be a plain filename ending in .py")
+        if not isinstance(content, str) or not content.strip():
+            raise HTTPException(400, "content must be non-empty text")
+        if len(content) > 200_000:
+            raise HTTPException(400, "content too large (max 200k characters)")
+        updir = os.path.join(allowed, "uploads")
+        os.makedirs(updir, exist_ok=True)
+        dest = os.path.realpath(os.path.join(updir, name))
+        if not dest.startswith(updir + os.sep):
+            raise HTTPException(400, "invalid filename")
+        with open(dest, "w", encoding="utf-8") as f:
+            f.write(content)
+        return {"ok": True, "script": os.path.relpath(dest, allowed)}
 
     @app.get("/api/report")
     def report(request: Request):
