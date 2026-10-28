@@ -20,12 +20,14 @@ export const initialState: State = {
   patchedPath: null, diff: null, verifyK: 0, verifyMode: null, nDone: 0, nTotal: 0, nFailed: 0, runs: [],
   verdict: null, verdictReason: null, violations: [], events: [], history: [], error: null, lastSeq: -1,
 };
-export type Action = { kind: "event"; event: ServerEvent } | { kind: "server_state"; state: ServerState } | { kind: "run_started"; script: string } | { kind: "run_error"; error: string } | { kind: "server_unreachable"; error: string };
+export type Action = { kind: "event"; event: ServerEvent } | { kind: "server_state"; state: ServerState } | { kind: "run_started"; script: string } | { kind: "run_error"; error: string } | { kind: "server_unreachable"; error: string } | { kind: "clear_error" } | { kind: "hydrate_history"; history: HistoryEntry[] };
 // The single pure function all UI state derives from. Counters only move up
 // (Math.max), verdict is set only by verification_completed, mode only by
 // pipeline_started.mock / server summary - never by a UI toggle.
 export function reduce(state: State, action: Action): State {
-  if (action.kind === "run_started") return { ...initialState, history: state.history, liveConfigured: state.liveConfigured, callCap: state.callCap, demoPacing: state.demoPacing, phase: "running", script: action.script };
+  if (action.kind === "hydrate_history") return { ...state, history: action.history.filter((h) => typeof h.script === "string").slice(-20) };
+  if (action.kind === "run_started") return { ...initialState, history: state.history, liveConfigured: state.liveConfigured, callCap: state.callCap, demoPacing: state.demoPacing, phase: "running", script: action.script, error: null };
+  if (action.kind === "clear_error") return { ...state, error: null };
   if (action.kind === "run_error" || action.kind === "server_unreachable") return { ...state, error: action.error, phase: state.phase === "running" ? "failed" : state.phase };
   if (action.kind === "server_state") {
     let s: State = { ...state, liveConfigured: action.state.live_configured, callCap: action.state.call_cap, demoPacing: Boolean(action.state.demo_pacing) };
