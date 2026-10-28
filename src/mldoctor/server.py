@@ -10,14 +10,23 @@ import os
 import queue
 import secrets
 import threading
+import time
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+STATIC_NEXT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static_next")
+DEMO_PACING_DELAY = 0.35
 
 
-def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
+def effective_pacing(demo_pacing, live):
+    """Demo pacing is MOCK-only; never active for a live run."""
+    return bool(demo_pacing) and not bool(live)
+
+
+def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
+               dev_cors=False):
     allowed = os.path.realpath(allowed_dir or os.getcwd())
     app = FastAPI(title="MLDoctor")
     app.state.token = token or secrets.token_urlsafe(18)
@@ -32,6 +41,11 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
                                and os.environ.get("MLDOCTOR_API_KEY"))
     app.state.live_configured = live_configured
     app.state.call_cap = int(os.environ.get("MLDOCTOR_MAX_CALLS", call_cap))
+    app.state.demo_pacing = False
+    if dev_cors or os.environ.get("MLDOCTOR_DEV_CORS") == "1":
+        from fastapi.middleware.cors import CORSMiddleware
+        app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:3000"],
+                           allow_methods=["GET", "POST"], allow_headers=["*"])
 
     def check_token(request):
         tok = request.headers.get("x-mldoctor-token") or request.query_params.get("token")
@@ -39,12 +53,19 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
             raise HTTPException(401, "bad or missing token")
 
     def listener(ev):
+        if app.state.demo_pacing:
+            time.sleep(DEMO_PACING_DELAY)
         app.state.events.append(ev)
         app.state.bus_queue.put(ev)
 
+    def _next_index():
+        p = os.path.join(STATIC_NEXT, "index.html")
+        return p if os.path.isfile(p) else None
+
     @app.get("/")
     def index():
-        return FileResponse(os.path.join(STATIC, "index.html"))
+        nxt = _next_index()
+        return FileResponse(nxt or os.path.join(STATIC, "index.html"))
 
     @app.get("/app.css")
     def css():
@@ -61,6 +82,7 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
                 "events": app.state.events, "mock": True,
                 "live_configured": app.state.live_configured,
                 "call_cap": app.state.call_cap,
+                "demo_pacing": app.state.demo_pacing,
                 "allowed_dir": allowed}
 
     @app.get("/api/report")
@@ -114,6 +136,7 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
             finally:
                 app.state.running = False
 
+        app.state.demo_pacing = effective_pacing(body.get("demo_pacing"), want_live)
         threading.Thread(target=work, daemon=True).start()
         return {"ok": True, "script": script}
 
@@ -133,6 +156,10 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8):
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
+    if os.path.isfile(os.path.join(STATIC_NEXT, "index.html")):
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/", StaticFiles(directory=STATIC_NEXT, html=True),
+                  name="static_next")
     return app
 
 
