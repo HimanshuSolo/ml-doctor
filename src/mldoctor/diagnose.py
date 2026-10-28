@@ -13,9 +13,16 @@ class ValidationError(Exception):
     pass
 
 
+def extract_json(text):
+    """JSON object embedded in a reply: live models may wrap it in prose
+    or chat-template tokens, so take the outermost {...} span."""
+    start, end = text.find("{"), text.rfind("}")
+    return text[start:end + 1] if 0 <= start < end else text
+
+
 def parse_diagnosis(text):
     try:
-        obj = json.loads(text)
+        obj = json.loads(extract_json(text))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"not JSON: {exc}") from exc
     if type(obj) is not dict:
@@ -31,7 +38,10 @@ def parse_diagnosis(text):
 
 
 def build_prompt(classification, source):
-    return (f"symptom={classification.get('symptom')} "
+    return ("Respond with ONLY a JSON object, no prose, with exactly these "
+            "fields: symptom (one of healthy, non_reproducible, diverged, "
+            "error), reason, culprit, fix_plan.\n"
+            f"symptom={classification.get('symptom')} "
             f"reason={classification.get('reason')}\n"
             f"source:\n{source[:4000]}")
 
