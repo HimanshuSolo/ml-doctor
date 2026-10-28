@@ -35,6 +35,20 @@ def test_allowed_dir_and_ext_enforced(client):
     assert outside.status_code == 400
 
 
+def test_save_script_roundtrip_and_guards(tmp_path):
+    from mldoctor.server import create_app
+    app_client = TestClient(create_app(allowed_dir=str(tmp_path), token="test-token"))
+    assert app_client.post("/api/scripts", json={"name": "a.py", "content": "x=1"}).status_code == 401
+    r = app_client.post("/api/scripts", headers=H, json={"name": "mine.py", "content": "print('hi')"})
+    assert r.status_code == 200
+    assert r.json()["script"] == os.path.join("uploads", "mine.py")
+    assert (tmp_path / "uploads" / "mine.py").read_text() == "print('hi')"
+    bad = [{"name": "../evil.py", "content": "x"}, {"name": "a.txt", "content": "x"},
+           {"name": "e.py", "content": "   "}, {"name": "big.py", "content": "x" * 200_001}]
+    for b in bad:
+        assert app_client.post("/api/scripts", headers=H, json=b).status_code == 400
+
+
 @pytest.mark.slow
 def test_run_repro_mock_end_to_end(client):
     r = client.post("/api/run", headers=H, json={
