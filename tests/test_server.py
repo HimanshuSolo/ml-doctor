@@ -1,0 +1,49 @@
+"""Dashboard server: token, allowed-dir, static, mock run (no live)."""
+import os
+import time
+
+import pytest
+from fastapi.testclient import TestClient
+
+from mldoctor.server import create_app
+
+ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
+H = {"X-MLDoctor-Token": "test-token"}
+
+
+@pytest.fixture()
+def client():
+    return TestClient(create_app(allowed_dir=ROOT, token="test-token"))
+
+
+def test_static_and_mock_badge(client):
+    assert "MOCK" in client.get("/").text
+    assert client.get("/app.js").status_code == 200
+    assert client.get("/app.css").status_code == 200
+
+
+def test_token_required(client):
+    assert client.get("/api/state").status_code == 401
+    assert client.get("/api/state", headers=H).status_code == 200
+
+
+def test_allowed_dir_and_ext_enforced(client):
+    assert client.post("/api/run", headers=H, json={"script": "/etc/passwd"}).status_code == 400
+    outside = client.post("/api/run", headers=H, json={"script": "/tmp/x.py"})
+    assert outside.status_code == 400
+
+
+@pytest.mark.slow
+def test_run_repro_mock_end_to_end(client):
+    r = client.post("/api/run", headers=H, json={
+        "script": os.path.join(ROOT, "fixtures", "repro.py"), "k": 2, "verify_k": 2})
+    assert r.status_code == 200
+    for _ in range(60):
+        s = client.get("/api/state", headers=H).json()
+        if s["summary"] and not s["running"]:
+            break
+        time.sleep(1)
+    assert s["summary"]["passed"] is True
+    assert s["summary"]["mock"] is True
+    types = [e["type"] for e in s["events"]]
+    assert "verification_completed" in types and types[-1] == "pipeline_completed"
