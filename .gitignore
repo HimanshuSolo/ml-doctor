@@ -1,6 +1,7 @@
 .env
 .venv/
 .mldoctor/
+uploads/
 *.patched.py
 __pycache__/
 *.pyc
