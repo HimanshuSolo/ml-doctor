@@ -28,7 +28,8 @@ def _client(args):
                 raise SystemExit("--live requires both --base-url and --model (or MLDOCTOR_BASE_URL/MLDOCTOR_MODEL)")
             return OpenAICompatibleClient(
                 base_url=args.base_url, model=args.model, budget=budget,
-                api_key=os.environ.get("MLDOCTOR_API_KEY"),
+                api_key=(os.environ.get("MLDOCTOR_API_KEY")
+                         or os.environ.get("BASETEN_API_KEY")),
                 auth_scheme=os.environ.get("MLDOCTOR_AUTH_SCHEME", "Bearer"),
                 max_tokens=args.max_tokens)
         client = OpenAICompatibleClient.from_env(budget, max_tokens=args.max_tokens)
@@ -54,6 +55,8 @@ def cmd_serve(args):
 
 
 def main(argv=None):
+    from .llm import load_dotenv
+    load_dotenv()
     parser = argparse.ArgumentParser(prog="mldoctor")
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="reproduce a script and classify its symptom")
