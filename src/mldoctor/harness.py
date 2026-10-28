@@ -121,10 +121,20 @@ def run_script(target, telemetry_path, seed=0, timeout=120, extra_env=None):
     if extra_env:
         env.update(extra_env)
     env["PYTHONPATH"] = SRC_DIR + os.pathsep + env.get("PYTHONPATH", "")
-    proc = subprocess.run(
-        [sys.executable, "-c", "from mldoctor.harness import child_main; child_main()"],
-        env=env, capture_output=True, text=True, timeout=timeout,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", "from mldoctor.harness import child_main; child_main()"],
+            env=env, capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        rows = []
+        if os.path.exists(telemetry_path):
+            with open(telemetry_path) as fh:
+                rows = [json.loads(line) for line in fh if line.strip()]
+        out = exc.stdout.decode(errors="ignore") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        return {"returncode": 124, "stdout": out,
+                "stderr": f"timeout after {timeout}s", "telemetry": rows,
+                "final_metric": None}
     rows = []
     if os.path.exists(telemetry_path):
         with open(telemetry_path) as fh:
