@@ -21,7 +21,7 @@ mldoctor = "mldoctor.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-mldoctor = ["static/*"]
+mldoctor = ["static/*", "static_next/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
