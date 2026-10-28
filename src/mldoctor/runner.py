@@ -39,8 +39,12 @@ def classify(runs, diverge_ratio=DIVERGE_RATIO):
     crashed = [i for i, r in enumerate(runs) if r["returncode"] != 0]
     if crashed:
         i = crashed[0]
+        reason = f"run {i} exited {runs[i]['returncode']}"
+        tail = "\n".join(str(runs[i].get("stderr") or "").strip().splitlines()[-3:])
+        if tail:
+            reason += f" — stderr tail: {tail[:500]}"
         return {"symptom": "error",
-                "reason": f"run {i} exited {runs[i]['returncode']}",
+                "reason": reason,
                 "first_step": None,
                 "metrics": [r["final_metric"] for r in runs]}
     for i, run in enumerate(runs):
