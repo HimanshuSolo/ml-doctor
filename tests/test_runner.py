@@ -2,6 +2,8 @@
 import math
 import os
 
+import pytest
+
 from mldoctor.runner import classify, run_baseline
 
 FIX = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -43,16 +45,19 @@ def test_error_on_crash():
     assert classify(runs)["symptom"] == "error"
 
 
+@pytest.mark.slow
 def test_healthy_fixture_classified_healthy():
     runs = run_baseline(os.path.join(FIX, "healthy.py"), k=3, seed=0)
     assert classify(runs)["symptom"] == "healthy"
 
 
+@pytest.mark.slow
 def test_repro_fixture_classified_non_reproducible():
     runs = run_baseline(os.path.join(FIX, "repro.py"), k=3, seed=0)
     assert classify(runs)["symptom"] == "non_reproducible"
 
 
+@pytest.mark.slow
 def test_diverge_fixture_classified_diverged():
     runs = run_baseline(os.path.join(FIX, "diverge.py"), k=3, seed=0)
     assert classify(runs)["symptom"] == "diverged"
