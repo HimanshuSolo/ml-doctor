@@ -48,7 +48,8 @@ class Budget:
             raise BudgetExceeded(f"call cap {self.max_calls} exceeded")
 
     def record(self, *, model, purpose, prompt_chars, completion_chars, live,
-               usage_total=None, usage_prompt=None, usage_completion=None):
+               usage_total=None, usage_prompt=None, usage_completion=None,
+               usage_reasoning=None):
         self.check_cap()
         entry = {
             "seq": len(self.calls),
@@ -60,6 +61,7 @@ class Budget:
             "usage_total": usage_total,
             "usage_prompt": usage_prompt,
             "usage_completion": usage_completion,
+            "usage_reasoning": usage_reasoning,
         }
         self.calls.append(entry)
         if self.ledger_path:
