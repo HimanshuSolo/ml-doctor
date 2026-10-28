@@ -44,6 +44,33 @@ def test_static_next_preferred_when_present(tmp_path, monkeypatch):
     assert c.get("/app.js").status_code == 200  # vanilla fallback intact
 
 
+def test_fixtures_endpoint_lists_allowed_fixtures():
+    client = TestClient(create_app(allowed_dir=ROOT, token="test-token"))
+    assert client.get("/api/fixtures").status_code == 401
+    names = client.get("/api/fixtures", headers=H).json()["fixtures"]
+    assert "fixtures/repro.py" in names and "fixtures/diverge.py" in names
+    assert all(n.startswith("fixtures/") and n.endswith(".py") for n in names)
+
+
+def test_dev_cors_allows_both_localhost_origins(monkeypatch):
+    monkeypatch.setenv("MLDOCTOR_DEV_CORS", "1")
+    client = TestClient(create_app(allowed_dir=ROOT, token="test-token"), raise_server_exceptions=False)
+    for origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+        r = client.options("/api/run", headers={"Origin": origin, "Access-Control-Request-Method": "POST",
+                                                 "Access-Control-Request-Headers": "X-MLDoctor-Token"})
+        assert r.headers.get("access-control-allow-origin") == origin, origin
+    r = client.options("/api/run", headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "POST",
+                                            "Access-Control-Request-Headers": "X-MLDoctor-Token"})
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
+
+
+def test_cors_off_by_default(monkeypatch):
+    monkeypatch.delenv("MLDOCTOR_DEV_CORS", raising=False)
+    client = TestClient(create_app(allowed_dir=ROOT, token="test-token"))
+    r = client.options("/api/run", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"})
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
+
+
 def test_vanilla_fallback_when_no_static_next(tmp_path, monkeypatch):
     monkeypatch.setattr(srv, "STATIC_NEXT", str(tmp_path / "missing"))
     c = TestClient(create_app(allowed_dir=ROOT, token="test-token"))
