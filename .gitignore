@@ -6,3 +6,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 PROGRESS.md
+web/node_modules/
+web/tsconfig.tsbuildinfo
+web/.next/
+web/out/
