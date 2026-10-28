@@ -58,6 +58,13 @@ describe("reduce", () => {
     s = reduce(initialState, { kind: "event", event: ev({ type: "verification_started", k: 5, required_k: 5, mode: "seeds" }) });
     expect(s.nTotal).toBe(5);
   });
+  it("hydrate_history restores persisted history, caps at 20, drops bad rows", () => {
+    const good = Array.from({ length: 25 }, (_, i) => ({ script: `f${i}.py`, verdict: "PASS", passed: true, at: i }));
+    const s = reduce(initialState, { kind: "hydrate_history", history: [...good, { script: 42, verdict: "x", passed: false, at: 99 }] as never });
+    expect(s.history).toHaveLength(20);
+    expect(s.history.every((h) => typeof h.script === "string")).toBe(true);
+    expect(s.phase).toBe("idle"); // hydration never starts or completes a run
+  });
   it("duplicate seq is ignored; pipeline_failed surfaces the error", () => {
     const e1 = started(); let s = reduce(initialState, { kind: "event", event: e1 });
     expect(reduce(s, { kind: "event", event: e1 }).events).toHaveLength(1);
