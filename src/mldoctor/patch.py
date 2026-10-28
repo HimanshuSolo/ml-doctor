@@ -17,8 +17,9 @@ class ValidationError(Exception):
 
 
 def parse_patch(text):
+    from .diagnose import extract_json
     try:
-        obj = json.loads(text)
+        obj = json.loads(extract_json(text))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"not JSON: {exc}") from exc
     if type(obj) is not dict or set(obj) != {"path", "edits", "rationale"}:
@@ -50,7 +51,10 @@ def apply_patch(source_text, patch):
 
 
 def propose_patch(diagnosis, source, client):
-    prompt = f"symptom={diagnosis['symptom']} plan={diagnosis['fix_plan']}\nsource:\n{source[:4000]}"
+    prompt = ("Respond with ONLY a JSON object, no prose, with exactly these "
+              "fields: path, edits (a list of {old, new} exact substrings of "
+              "the source; each old must appear exactly once), rationale.\n"
+              f"symptom={diagnosis['symptom']} plan={diagnosis['fix_plan']}\nsource:\n{source[:4000]}")
     return parse_patch(client.complete(prompt, purpose="patch"))
 
 
