@@ -63,9 +63,41 @@ def check_patch_diff(original, patched):
     return list(dict.fromkeys(v))
 
 
+MAX_SERIES_POINTS = 200
+
+
+def _finite_or_none(v):
+    return v if (v is not None and math.isfinite(v)) else None
+
+
+def downsample(series, max_points=MAX_SERIES_POINTS):
+    """Evenly spaced measured points, always keeping the last; ~max_points max."""
+    if len(series) <= max_points:
+        return list(series)
+    idx = [round(i * (len(series) - 1) / (max_points - 1))
+           for i in range(max_points)]
+    return [series[i] for i in dict.fromkeys(idx)]
+
+
+def run_payload(run, run_index, status):
+    """Per-run fields the UI renders, from harness telemetry only."""
+    tel = run.get("telemetry") or []
+    losses = [t["loss"] for t in tel if t.get("loss") is not None]
+    finite = [x for x in losses if math.isfinite(x)]
+    return {
+        "run_index": run_index,
+        "param_hash": (tel[-1]["param_hash"][:6] if tel else None),
+        "final_loss": _finite_or_none(losses[-1] if losses else None),
+        "peak_loss": _finite_or_none(max(finite) if finite else None),
+        "status": status,
+    }
+
+
 def evidence_of(runs):
     return {
-        "loss_curves": [[t["loss"] for t in r["telemetry"] if t["loss"] is not None]
+        "loss_curves": [downsample([_finite_or_none(t["loss"])
+                                     for t in r["telemetry"]
+                                     if t["loss"] is not None])
                         for r in runs],
         "hash_fingerprints": [[t["param_hash"][:6] for t in r["telemetry"]]
                               for r in runs],
@@ -82,9 +114,12 @@ def verify_fix(patched_script, original_symptom, expected="healthy",
         return {"passed": False, "symptom": None, "reason": "masking: " + "; ".join(violations),
                 "violations": violations, "k": 0, "metrics": [], "seeds": [], "mode": "diff"}
     k = k or required_runs(original_symptom)
-    def emit(done, failed):
+    def emit(done, failed, run=None, status="finite"):
         if progress:
-            progress({"n_done": done, "n_total": k, "n_failed": failed})
+            payload = {"n_done": done, "n_total": k, "n_failed": failed}
+            if run is not None:
+                payload.update(run_payload(run, done - 1, status))
+            progress(payload)
 
     if original_symptom == "diverged":
         seeds = list(range(seed, seed + k))
@@ -103,7 +138,9 @@ def verify_fix(patched_script, original_symptom, expected="healthy",
             if cur:
                 n_failed += 1
                 bad = bad or cur
-            emit(i + 1, n_failed)
+            emit(i + 1, n_failed, run,
+                 "error" if (cur and cur[0] == "error") else
+                 "diverged" if cur else "finite")
         ok = bad is None and expected == "healthy"
         return {"passed": ok, "symptom": "healthy" if bad is None else bad[0],
                 "reason": "finite, sane losses on all seeds" if bad is None else bad[1],
@@ -121,7 +158,11 @@ def verify_fix(patched_script, original_symptom, expected="healthy",
             ref = seq
         if bad_run:
             n_failed += 1
-        emit(i + 1, n_failed)
+        status = ("diverged" if any(not math.isfinite(x) for x in losses)
+                  else "error" if run["returncode"] != 0
+                  else "different" if (ref is not None and seq != ref)
+                  else "identical")
+        emit(i + 1, n_failed, run, status)
     result = classify(runs)
     ok = result["symptom"] == expected
     return {"passed": ok, "symptom": result["symptom"], "reason": result["reason"],
