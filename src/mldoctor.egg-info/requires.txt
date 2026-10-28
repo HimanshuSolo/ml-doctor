@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+httpx
+matplotlib
+
+[fixtures]
+torch
+scikit-learn
+
+[test]
+pytest
+httpx

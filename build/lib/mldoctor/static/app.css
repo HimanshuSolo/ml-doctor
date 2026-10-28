@@ -1,0 +1,10 @@
+body{font-family:system-ui,sans-serif;margin:2rem;color:#111;background:#fff}
+header{display:flex;gap:1rem;align-items:center}h1{font-size:28px;margin:0}
+#mock-badge{background:#8a5a00;color:#fff;padding:.35rem .7rem;font-weight:700;border-radius:4px}
+main{display:grid;gap:1.5rem;max-width:1000px}section{border-top:2px solid #111;padding-top:.5rem}
+label{display:block;margin:.5rem 0}input{font-family:ui-monospace,monospace;padding:.35rem}
+button{padding:.5rem 1rem;font-weight:700;cursor:pointer}
+#tracker li{opacity:.35}#tracker li.done{opacity:1;font-weight:700}
+#counter{font-family:ui-monospace,monospace;font-size:96px;line-height:1;font-weight:800}
+#verdict{font-size:20px;font-weight:700}pre{background:#111;color:#eee;padding:1rem;overflow:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
