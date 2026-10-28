@@ -32,6 +32,26 @@ User asked for Next.js, but standing rules forbid new dependencies and require v
 - Testing: pytest for demo-pacing rule (never in live) + event payload fields UI depends on (`verify_progress`: n_done/n_total/n_failed; per-run hash values). Manual browser checklist (≤10 items): counter+grid progress together, hash match after patch, FAIL patch display, reduced-motion, nothing animates before its event, MOCK/LIVE badge truthful, no non-localhost network (check via DevTools Network tab).
 - Final report must include: changed files, assumptions, unverified items, manual checklist, dashboard commands. Do not run git.
 
+## Session 2026-10-28 (evening) — what got built and verified
+- Next.js rebuild carried through Phases 1–3 + two upgrade rounds; `static_next/` rebuilt and served at `/`.
+  Checks green at end of session: `tsc` 0 errors, `eslint` 0 errors, `vitest` 16 passed,
+  `pytest` 75 passed (13 slow deselected), Chromium screenshots with 0 console errors.
+- Stage package: cinematic telemetry hero ([HeroField.tsx](web/src/components/chrome/HeroField.tsx)),
+  pinned scroll-story rail ([StoryPinned.tsx](web/src/components/chrome/StoryPinned.tsx)),
+  one-click demo (repro → diverge → healthy via real API), history persisted in localStorage
+  (`hydrate_history` reducer action + test), spring motion, focus ring.
+- End-user intake: `POST /api/scripts` saves pasted `.py` to `uploads/` (token, basename, 200k guards +
+  [test](tests/test_server.py)); [CodeIntake.tsx](web/src/components/CodeIntake.tsx) paste tab in launcher;
+  [ProofPanel.tsx](web/src/components/ProofPanel.tsx) "Proof, not prompts" checklist + `buildSummary`
+  ([helpers.ts](web/src/lib/helpers.ts) + tests). Browser-verified: paste saved `uploads/my_model.py`
+  (test file removed afterwards).
+- Crash-report fix: `classify()` error reason now carries the last 3 lines of stderr
+  ([runner.py](src/mldoctor/runner.py), [test](tests/test_runner.py)) so pasted-code crashes self-diagnose
+  in the Investigate card. Prompted by user pasting a script that exited 1 (their paste was likely
+  mangled — the same script passes here as `non_reproducible`); gave them a custom `shuffle_bug.py` to retry.
+- `.gitignore` += `uploads/`. Uncommitted per-file commits are the user's to make (49+ files ahead of origin/main
+  noted earlier; push fails in sandbox — no GitHub auth). No commits made by agent this session.
+
 ## Commands (from repo root)
 - Fast tests: `.venv/bin/python -m pytest -q`
 - Slow tests: `.venv/bin/python -m pytest -q -m slow`
