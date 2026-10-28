@@ -1,21 +1,78 @@
 # MLDoctor
-Reproduce, investigate, patch, and verify broken ML training scripts; the verification gate decides success.
-Status: Stage 0 approved; scaffold batch pending review (unverified).
-Built during the Meta Global AI Developer Hackathon (statement finalized in Stage 11).
-## Setup
-TODO in Stage 1 (venv + install commands pending approval).
-## Env vars
-TODO in Stage 3 (keys via env only; `.env.example` then).
-## `mldoctor serve`
-TODO in Stage 8 (127.0.0.1 only, mock by default).
+
+Reproduce, investigate, patch, and verify broken ML training scripts. The verification gate — not the model — decides success.
+
+## The problem
+
+Training scripts fail quietly: they diverge, or give different results every run despite a fixed seed. MLDoctor runs the script repeatedly under telemetry wrappers, classifies the symptom (`healthy`, `non_reproducible`, `diverged`, `error`), asks a model (mock by default) for a diagnosis and patch, then re-runs the patched script enough times to earn the verdict.
+
 ## How it works
-TODO (harness -> runner -> diagnose -> patch -> verify).
+
+1. **Harness** — subprocess wrappers on `Tensor.backward` / optimizer `step` record per-step loss, grad norm, and a parameter hash. The child never seeds RNGs, so unseeded-RNG bugs are not masked.
+2. **Runner** — `-k` identical baseline runs (default 5) classify the symptom. `-k` controls only this baseline count.
+3. **Diagnose + patch** — strict-validated JSON diagnosis and exact-string patch edits (each `old` must appear exactly once). Mock responses are keyed by symptom class.
+4. **Verify gate** — anti-masking diff checks first (no runs if flagged), then real re-runs: 10 identical runs for `non_reproducible`, 5 different seeds for `diverged`. Configurable via `--verify-k`.
+5. **Dashboard / report** — live `verify_progress` events over SSE, loss-curve and hash-fingerprint evidence, and a self-contained HTML report per run.
+
+Patched files land in `.mldoctor/patched/` (gitignored).
+
+## Setup (fresh clone)
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e .
+.venv/bin/pip install torch scikit-learn pytest httpx   # fixtures + tests
+.venv/bin/python -m pytest -q          # fast tests
+.venv/bin/python -m pytest -q -m slow  # training-heavy tests
+```
+
+Verify the install: `.venv/bin/mldoctor --help`.
+
+## Environment variables
+
+| Var | Meaning |
+|---|---|
+| `MLDOCTOR_BASE_URL` | Live model base URL (OpenAI-style) |
+| `MLDOCTOR_API_KEY` | Live API key (never printed or logged) |
+| `MLDOCTOR_MODEL` | Live model name |
+| `MLDOCTOR_AUTH_SCHEME` | Auth scheme, default `Bearer` |
+| `MLDOCTOR_DISABLE_LIVE` | `1` blocks all live calls |
+| `MLDOCTOR_MAX_CALLS` | Dashboard per-run call cap (default 8) |
+| `MLDOCTOR_SEED` | Seed the target script reads (harness sets it per run) |
+
+## CLI
+
+```bash
+mldoctor run fixtures/repro.py -k 2
+mldoctor fix fixtures/repro.py            # mock, default verification counts
+mldoctor fix fixtures/diverge.py --verify-k 5
+MLDOCTOR_BASE_URL=... MLDOCTOR_API_KEY=... MLDOCTOR_MODEL=... mldoctor fix script.py --live
+```
+
+`--live` is **UNVERIFIED against Baseten** until a live check is done. Text-only input; no image input yet (Baseten request format for images not confirmed).
+
+## Dashboard
+
+```bash
+mldoctor serve --port 8765   # prints a per-launch token URL; 127.0.0.1 only
+```
+
+Open the printed URL in your browser. The MOCK/LIVE badge always shows the real mode. The Live toggle is disabled unless the server was started with live env vars set, and turning it on asks for confirmation showing the per-run call cap. Scripts must live inside the server's allowed directory (its working directory).
+
+## Verification and anti-masking
+
+The gate rejects patches that: change epochs/dataset/model, wrap training in try/except, clamp or NaN-mask losses, hardcode a metric, remove or weaken a check/assert, remove shuffling instead of seeding it, use a fixed seed literal, or produce an empty diff. A patch that does not apply cleanly raises a clear error; a patched script that crashes is reported as `error`, not a pass. Verification always runs the patched script for real, including in mock mode — only the model is mocked.
+
 ## Limitations
-TODO (CPU-only, small scripts, no GPU/distributed/notebooks).
-## Results
-TODO in Stage 11 (honest, including failures).
-## Demo script
-TODO in Stage 11 (3-minute video).
-## Fixtures (CONTROLLED, CPU-only)
-`fixtures/repro.py`, `fixtures/diverge.py`, `fixtures/healthy.py`; `leakage.py` deferred until after Stage 5.
-# ml-doctor
+
+CPU only; small single-file scripts; no GPU/distributed/notebooks. "Identical across N runs" is evidence, not proof of reproducibility. Controlled fixtures (`fixtures/healthy.py`, `repro.py`, `diverge.py`) are known-bug cases, not real-world validation. Live model path is text-only and unverified against Baseten.
+
+## 3-minute demo script
+
+1. (0:00) `mldoctor fix fixtures/repro.py` — watch it classify `non_reproducible`, patch, and pass 10-run verification.
+2. (1:00) `mldoctor serve` — run `diverge.py` in the dashboard; watch the live counter reach 5/5 seeds finite and the before/after loss curves.
+3. (2:00) Show a masking patch (e.g. `EPOCHS = 0`) rejected by the gate with no runs. Download the HTML report.
+
+## Built during the hackathon
+
+Built during the Meta Global AI Developer Hackathon: harness, runner, mock/live model clients with budget and kill switch, verify gate, CLI, FastAPI dashboard with SSE, HTML reports, and the full test suite (fast + slow).
