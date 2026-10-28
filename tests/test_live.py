@@ -25,7 +25,18 @@ class H(BaseHTTPRequestHandler):
             time.sleep(1.5)
         if kind == "http500":
             self.send_response(500); self.end_headers(); self.wfile.write(b"err"); return
-        if kind == "badjson":
+        if kind == "reasoning":
+            payload = {"model": "fake-reported", "choices": [{"finish_reason": "stop", "message": {
+                "content": json.dumps({"symptom": "diverged", "reason": "r", "culprit": "c", "fix_plan": "f"}),
+                "reasoning_content": "thinking out loud"}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 12, "total_tokens": 22,
+                          "completion_tokens_details": {"reasoning_tokens": 7}}}
+        elif kind == "nocontent":
+            payload = {"model": "m", "choices": [{"finish_reason": "stop", "message": {"reasoning_content": "thinking"}}]}
+        elif kind == "empty":
+            payload = {"choices": [{"message": {"content": "", "reasoning_content": "all spent thinking"}}],
+                       "usage": {"prompt_tokens": 3, "completion_tokens": 50, "total_tokens": 53}}
+        elif kind == "badjson":
             payload = {"choices": [{"message": {"content": "not json"}}]}
         elif kind == "missing":
             payload = {"choices": [{"message": {"content": '{"symptom":"diverged"}'}}]}
@@ -102,6 +113,41 @@ def test_cap_and_kill_switch(srv, monkeypatch):
     with pytest.raises(LiveDisabled):
         OpenAICompatibleClient(base_url=srv, model="m",
                                budget=Budget(live=True)).complete("x")
+
+
+def test_reasoning_content_and_usage_details(srv, monkeypatch):
+    # Real Baseten shape: reasoning sits in reasoning_content, the final
+    # answer in content, reasoning tokens in completion_tokens_details.
+    MODE["kind"] = "reasoning"
+    c = _client(srv, monkeypatch, api_key="sekret")
+    out = parse_diagnosis(c.complete("symptom=diverged", purpose="diagnose"))
+    assert out["symptom"] == "diverged"
+    assert c.last_response_info["has_reasoning_content"] is True
+    assert c.budget.calls[0]["usage_reasoning"] == 7
+
+
+def test_missing_content_error_reports_shape(srv, monkeypatch):
+    MODE["kind"] = "nocontent"
+    with pytest.raises(LLMError, match="has reasoning_content: True"):
+        _client(srv, monkeypatch).complete("x")
+
+
+def test_empty_content_is_clear_error(srv, monkeypatch):
+    MODE["kind"] = "empty"
+    with pytest.raises(LLMError, match="empty content"):
+        _client(srv, monkeypatch).complete("x")
+
+
+def test_dotenv_loader_and_baseten_fallback(tmp_path, monkeypatch):
+    from mldoctor.llm import load_dotenv
+    env_file = tmp_path / ".env"
+    env_file.write_text("MLDOCTOR_MODEL=from-dotenv\nKEPT=dotenv\n")
+    monkeypatch.setenv("KEPT", "real-env")
+    monkeypatch.delenv("MLDOCTOR_MODEL", raising=False)
+    load_dotenv(str(env_file))
+    import os
+    assert os.environ["MLDOCTOR_MODEL"] == "from-dotenv"
+    assert os.environ["KEPT"] == "real-env"  # existing env wins
 
 
 def test_missing_api_key_clear_and_not_logged(monkeypatch):
