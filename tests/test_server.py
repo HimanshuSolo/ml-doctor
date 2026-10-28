@@ -17,7 +17,9 @@ def client():
 
 
 def test_static_and_mock_badge(client):
-    assert "MOCK" in client.get("/").text
+    # "/" serves static_next when built, else the vanilla fallback; the
+    # vanilla assets stay reachable either way for the fallback dashboard.
+    assert "MLDoctor" in client.get("/").text
     assert client.get("/app.js").status_code == 200
     assert client.get("/app.css").status_code == 200
 
