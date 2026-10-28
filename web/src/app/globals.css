@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@theme {
+  --color-abyss: #060b16; --color-panel: #0b1526; --color-panel2: #0e1c33;
+  --color-line: #1d3355; --color-tealx: #2dd4bf; --color-bluex: #38bdf8;
+  --color-amberx: #fbbf24; --color-redx: #f87171; --color-greenx: #34d399;
+  --color-ink: #e6eefc; --color-dim: #9db4d4;
+  --font-sans: ui-sans-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --duration-fast: 180ms; --duration-med: 450ms;
+}
+html { scroll-behavior: smooth; }
+section { scroll-margin-top: 4.5rem; }
+body { background: var(--color-abyss); color: var(--color-ink); font-family: var(--font-sans); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+@keyframes drawline { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+.loss-line { stroke-dasharray: 1000; animation: drawline 1.2s ease forwards; }
+@media (prefers-reduced-motion: reduce) { .loss-line { animation: none; stroke-dasharray: none; } }
