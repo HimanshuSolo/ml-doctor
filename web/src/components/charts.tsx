@@ -26,7 +26,7 @@ export function LossChart({ evidence, title }: { evidence: Evidence | null; titl
     <figure>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded border border-line bg-panel2" role="img" aria-label={title}>
         {evidence.loss_curves.map((c, i) => (
-          <polyline key={i} className="loss-line" fill="none" stroke={i === 0 ? "#2ee6c8" : `hsl(${204 + i * 18} 70% 62%)`} strokeWidth="2"
+          <polyline key={i} className="loss-line" fill="none" stroke={i === 0 ? "#2a9d8f" : `hsl(${204 + i * 18} 70% 62%)`} strokeWidth="2"
             points={c.map((y, j) => `${(j / Math.max(maxLen - 1, 1)) * W},${y === null || !Number.isFinite(y) ? H : H - ((y - min) / Math.max(max - min, 1e-9)) * (H - 12) - 6}`).join(" ")} />
         ))}
         {boom !== null && <g><line x1={(boom / Math.max(maxLen - 1, 1)) * W} y1="0" x2={(boom / Math.max(maxLen - 1, 1)) * W} y2={H} stroke="#e86a6a" strokeDasharray="4 3" /><text x={Math.min((boom / Math.max(maxLen - 1, 1)) * W + 6, W - 150)} y="16" fill="#e86a6a" fontSize="12" fontFamily="monospace">exploded at step {boom}</text></g>}

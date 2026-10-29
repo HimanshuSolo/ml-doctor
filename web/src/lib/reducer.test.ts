@@ -65,6 +65,20 @@ describe("reduce", () => {
     expect(s.history.every((h) => typeof h.script === "string")).toBe(true);
     expect(s.phase).toBe("idle"); // hydration never starts or completes a run
   });
+  it("investigation events and leakage metrics reduce from events only", () => {
+    let s = reduce(initialState, { kind: "event", event: ev({ type: "baseline_completed", symptom: "leakage", reason: "overlap", metrics: [0.9], runs: 2, first_step: null,
+      evidence: { loss_curves: [[2, 1]], hash_fingerprints: [["abcdef"]], metrics: [0.9], split: { overlap: 12 } } }) });
+    expect(s.leakageBefore).toBe(12); expect(s.metricBefore).toBe(0.9);
+    s = reduce(s, { kind: "event", event: ev({ type: "hypotheses_reranked", ranked_hypotheses: ["dup rows"], next_experiment: "first_divergence_step" }) });
+    expect(s.hypotheses).toEqual(["dup rows"]);
+    s = reduce(s, { kind: "event", event: ev({ type: "experiment_started", experiment: "first_divergence_step" }) });
+    expect(s.activeExperiment).toBe("first_divergence_step");
+    s = reduce(s, { kind: "event", event: ev({ type: "experiment_result", experiment: "first_divergence_step", first_step: 1 }) });
+    expect(s.experiments).toHaveLength(1); expect(s.activeExperiment).toBeNull();
+    const passed = reduce(s, { kind: "event", event: ev({ type: "verification_completed", passed: true, verdict: "PASS", reason: "ok", symptom: "healthy", violations: [], k: 2, metrics: [0.7], metric_before: 0.9, metric_after: 0.7,
+      evidence: { loss_curves: [[2, 1]], hash_fingerprints: [["abcdef"]], metrics: [0.7], split: { overlap: 0 } } }) });
+    expect(passed.leakageAfter).toBe(0); expect(passed.metricBefore).toBe(0.9); expect(passed.metricAfter).toBe(0.7);
+  });
   it("duplicate seq is ignored; pipeline_failed surfaces the error", () => {
     const e1 = started(); let s = reduce(initialState, { kind: "event", event: e1 });
     expect(reduce(s, { kind: "event", event: e1 }).events).toHaveLength(1);

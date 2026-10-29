@@ -1,0 +1,26 @@
+--- original.py
++++ patched.py
+@@ -14,12 +14,23 @@
+ BATCH = 128
+ 
+ 
++def dedup_rows(x, y):
++    seen, keep = set(), []
++    for i, row in enumerate(x):
++        key = row.tobytes()
++        if key not in seen:
++            seen.add(key)
++            keep.append(i)
++    return x[keep], y[keep]
++
++
+ def main():
+     # BUG: `random` is never seeded -> shuffle order differs every run,
+     # even though torch/numpy use the same seed.
+     np.random.seed(SEED)
+     torch.manual_seed(SEED)
+     x, y = load_digits(return_X_y=True)
++    x, y = dedup_rows(x, y)
+     xtr, xte, ytr, yte = train_test_split(x, y, test_size=0.2, random_state=SEED)
+     scaler = StandardScaler().fit(xtr)
+     xtr_t = torch.tensor(scaler.transform(xtr), dtype=torch.float32)

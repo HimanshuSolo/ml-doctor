@@ -1,0 +1,2 @@
+{"seq": 0, "model": "meta-models/muse-spark-open", "purpose": "diagnose", "prompt_chars": 1928, "completion_chars": 723, "live": true, "usage_total": 1802, "usage_prompt": 677, "usage_completion": 1125, "usage_reasoning": 921}
+{"seq": 1, "model": "meta-models/muse-spark-open", "purpose": "patch", "prompt_chars": 2110, "completion_chars": 1255, "live": true, "usage_total": 4551, "usage_prompt": 725, "usage_completion": 3826, "usage_reasoning": 3436}

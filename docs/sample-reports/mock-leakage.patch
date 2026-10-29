@@ -1,0 +1,25 @@
+--- original.py
++++ patched.py
+@@ -19,11 +19,22 @@
+ BATCH = 128
+ 
+ 
++def dedup_rows(x, y):
++    seen, keep = set(), []
++    for i, row in enumerate(x):
++        key = row.tobytes()
++        if key not in seen:
++            seen.add(key)
++            keep.append(i)
++    return x[keep], y[keep]
++
++
+ def main():
+     random.seed(SEED)
+     np.random.seed(SEED)
+     torch.manual_seed(SEED)
+     x, y = load_digits(return_X_y=True)
++    x, y = dedup_rows(x, y)
+     dup_idx = np.arange(0, len(x), 10)
+     x = np.concatenate([x, np.repeat(x[dup_idx], 6, axis=0)])
+     y = np.concatenate([y, np.repeat(y[dup_idx], 6)])

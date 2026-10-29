@@ -43,7 +43,7 @@ export default function CodeIntake({ script, setScript, fixtures, getToken, onEr
         <>
           <label className="block text-sm">Script path (inside allowed dir)
             <input value={script} onChange={(e) => setScript(e.target.value)} disabled={disabled}
-              className="mt-1 w-full rounded border border-line bg-panel2 p-2 font-mono text-sm" /></label>
+              className="mt-1 w-full rounded-md border border-line bg-panel2 p-2 font-mono text-sm" /></label>
           {fixtures.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-dim">Fixtures:</span>
@@ -63,7 +63,7 @@ export default function CodeIntake({ script, setScript, fixtures, getToken, onEr
               className="mt-1 w-full rounded border border-line bg-panel p-2 font-mono text-xs leading-5" /></label>
           <p id="paste-hint" className="font-mono text-xs text-dim">{code.length.toLocaleString()} / 200,000 chars · saved to uploads/ on the server, then run like any fixture</p>
           <button type="button" onClick={saveAndUse} disabled={saving || !code.trim() || disabled}
-            className="rounded bg-tealx px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+            className="rounded-md px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--panel)" }}>
             {saving ? "Saving…" : "Save & use this script"}</button>
         </div>
       )}

@@ -1,4 +1,4 @@
-import type { Diagnosis, Evidence, Patch, RunDatum, ServerEvent, ServerState } from "./events";
+import type { Diagnosis, Evidence, ExperimentResult, Patch, RunDatum, ServerEvent, ServerState } from "./events";
 export type Verdict = "PASS" | "FAIL";
 export type HistoryEntry = { script: string; verdict: string; passed: boolean; at: number };
 export type State = {
@@ -12,6 +12,9 @@ export type State = {
   runs: RunDatum[];
   verdict: Verdict | null; verdictReason: string | null; violations: string[];
   events: ServerEvent[]; history: HistoryEntry[]; error: string | null; lastSeq: number;
+  experiments: ExperimentResult[]; hypotheses: string[]; activeExperiment: string | null;
+  leakageBefore: number | null; leakageAfter: number | null;
+  metricBefore: number | null; metricAfter: number | null; proofUrl: string | null;
 };
 export const initialState: State = {
   phase: "idle", mode: null, demoPacing: false, liveConfigured: false, callCap: null,
@@ -19,6 +22,8 @@ export const initialState: State = {
   firstStep: null, evidenceBefore: null, evidenceAfter: null, diagnosis: null, patch: null,
   patchedPath: null, diff: null, verifyK: 0, verifyMode: null, nDone: 0, nTotal: 0, nFailed: 0, runs: [],
   verdict: null, verdictReason: null, violations: [], events: [], history: [], error: null, lastSeq: -1,
+  experiments: [], hypotheses: [], activeExperiment: null,
+  leakageBefore: null, leakageAfter: null, metricBefore: null, metricAfter: null, proofUrl: null,
 };
 export type Action = { kind: "event"; event: ServerEvent } | { kind: "server_state"; state: ServerState } | { kind: "run_started"; script: string } | { kind: "run_error"; error: string } | { kind: "server_unreachable"; error: string } | { kind: "clear_error" } | { kind: "hydrate_history"; history: HistoryEntry[] };
 // The single pure function all UI state derives from. Counters only move up
@@ -40,8 +45,17 @@ export function reduce(state: State, action: Action): State {
   const s: State = { ...state, lastSeq: Math.max(state.lastSeq, e.seq), events: [...state.events, e].slice(-200) };
   switch (e.type) {
     case "pipeline_started": return { ...s, phase: "running", script: e.script, mode: e.mock ? "MOCK" : "LIVE", demoPacing: e.mock ? s.demoPacing : false, error: null, verdict: null };
-    case "baseline_completed": return { ...s, symptom: e.symptom, reason: e.reason, metrics: e.metrics, firstStep: e.first_step, evidenceBefore: e.evidence };
+    case "baseline_completed": {
+      const split = (e.evidence as Evidence | undefined)?.split;
+      return { ...s, symptom: e.symptom, reason: e.reason, metrics: e.metrics, firstStep: e.first_step, evidenceBefore: e.evidence,
+        leakageBefore: split ? split.overlap : s.leakageBefore,
+        metricBefore: e.metrics && e.metrics.length ? e.metrics[0] : s.metricBefore };
+    }
     case "diagnosed": return { ...s, diagnosis: e.diagnosis };
+    case "experiment_started": return { ...s, activeExperiment: e.experiment };
+    case "experiment_result": return { ...s, activeExperiment: null, experiments: [...s.experiments,
+      Object.fromEntries(Object.entries(e).filter(([k]) => !["type", "seq", "ts"].includes(k))) as ExperimentResult] };
+    case "hypotheses_reranked": return { ...s, hypotheses: e.ranked_hypotheses };
     case "patch_proposed": return { ...s, patch: e.patch };
     case "patch_applied": return { ...s, patchedPath: e.patched_path, diff: e.diff };
     case "verification_started": return { ...s, verifyK: e.k, verifyMode: e.mode, nTotal: Math.max(s.nTotal, e.k) };
@@ -52,7 +66,14 @@ export function reduce(state: State, action: Action): State {
       }
       return { ...s, runs, nDone: Math.max(s.nDone, e.n_done), nTotal: Math.max(s.nTotal, e.n_total), nFailed: Math.max(s.nFailed, e.n_failed) };
     }
-    case "verification_completed": return { ...s, verdict: e.passed ? "PASS" : "FAIL", verdictReason: e.reason, violations: e.violations ?? [], evidenceAfter: e.evidence ?? s.evidenceAfter, nTotal: Math.max(s.nTotal, e.k), nDone: Math.max(s.nDone, e.k) };
+    case "verification_completed": {
+      const splitAfter = (e.evidence as Evidence | undefined)?.split;
+      return { ...s, verdict: e.passed ? "PASS" : "FAIL", verdictReason: e.reason, violations: e.violations ?? [], evidenceAfter: e.evidence ?? s.evidenceAfter,
+        nTotal: Math.max(s.nTotal, e.k), nDone: Math.max(s.nDone, e.k),
+        leakageAfter: splitAfter ? splitAfter.overlap : s.leakageAfter,
+        metricAfter: (e.metric_after ?? (e.metrics && e.metrics.length ? e.metrics[0] : s.metricAfter)),
+        metricBefore: (e.metric_before ?? s.metricBefore) };
+    }
     case "pipeline_completed": return { ...s, phase: "done", history: [...s.history, { script: s.script ?? "?", verdict: e.verdict, passed: e.passed, at: e.ts }] };
     case "pipeline_failed": return { ...s, phase: "failed", error: e.error };
     default: return s;

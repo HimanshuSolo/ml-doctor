@@ -53,6 +53,22 @@ MOCK_BY_SYMPTOM = {
             "rationale": "mock: sane lr plus input normalization",
         }),
     },
+    "leakage": {
+        "diagnosis": json.dumps({
+            "symptom": "leakage",
+            "reason": "mock: duplicated rows inflate test score via split overlap",
+            "culprit": "duplicated rows land on both sides of train/test split",
+            "fix_plan": "deduplicate rows before the train/test split",
+        }),
+        "patch": json.dumps({
+            "path": "leakage.py",
+            "edits": [{"old": "def main():",
+                       "new": "def dedup_rows(x, y):\n    seen, keep = set(), []\n    for i, row in enumerate(x):\n        key = row.tobytes()\n        if key not in seen:\n            seen.add(key)\n            keep.append(i)\n    return x[keep], y[keep]\n\n\ndef main():"},
+                      {"old": "    x, y = load_digits(return_X_y=True)",
+                       "new": "    x, y = load_digits(return_X_y=True)\n    x, y = dedup_rows(x, y)"}],
+            "rationale": "mock: deduplicate before splitting",
+        }),
+    },
 }
 
 
@@ -64,12 +80,39 @@ def _symptom_from_prompt(prompt):
 class MockClient:
     """Deterministic offline client. Records to budget, never needs --live."""
 
+    def complete_with_image(self, prompt, image_bytes, purpose="vision"):
+        out = "mock: vision not evaluated (simulated)"
+        self.budget.record(model="mock", purpose=purpose,
+                           prompt_chars=len(prompt or ""), completion_chars=len(out),
+                           live=False)
+        return out
+
     def __init__(self, budget=None, responses=None):
         self.budget = budget or Budget()
         self.responses = responses or {}
 
+    _INVESTIGATE_BY_SYMPTOM = {
+        "non_reproducible": ("first_divergence_step",
+                             ["unseeded stdlib random in shuffle", "torch seed missing"]),
+        "diverged": ("grad_stats_first_steps",
+                     ["learning rate too high", "unnormalized inputs"]),
+        "leakage": ("first_divergence_step",
+                    ["duplicated rows across split", "test contamination"]),
+    }
+
+    def _investigate_response(self, prompt):
+        sym = _symptom_from_prompt(prompt) or "non_reproducible"
+        if "experiment_result=" in prompt and "experiment_result=none" not in prompt:
+            return json.dumps({"ranked_hypotheses": [self._INVESTIGATE_BY_SYMPTOM.get(
+                sym, ("x",))[1][0] if sym in self._INVESTIGATE_BY_SYMPTOM else "likely cause"],
+                "next_experiment": "ready_to_patch"})
+        exp, hyps = self._INVESTIGATE_BY_SYMPTOM.get(sym, ("first_divergence_step", ["unknown"]))
+        return json.dumps({"ranked_hypotheses": hyps, "next_experiment": exp})
+
     def complete(self, prompt, *, purpose="diagnose", model="mock"):
         out = self.responses.get(purpose)
+        if out is None and purpose == "investigate":
+            out = self._investigate_response(prompt)
         if out is None:
             keyed = MOCK_BY_SYMPTOM.get(_symptom_from_prompt(prompt) or "", {})
             kind = "patch" if purpose == "patch" else "diagnosis"
@@ -210,5 +253,55 @@ class OpenAICompatibleClient:
                            usage_reasoning=details.get("reasoning_tokens"))
         return out
 
-    def complete_with_image(self, *args, **kwargs):
-        raise NotImplementedError("image input pending Baseten docs")
+    def complete_with_image(self, prompt, image_bytes, purpose="vision"):
+        """Opt-in vision: OpenAI-style image_url content part (data URL)."""
+        import base64
+        self.budget.check_live()
+        self.budget.check_cap()
+        if not self.api_key and not self._is_local():
+            raise LLMError("MLDOCTOR_API_KEY is not set (required for non-local base URL)")
+        b64 = base64.b64encode(image_bytes).decode()
+        content = [{"type": "text", "text": prompt},
+                   {"type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"}}]
+        body = json.dumps({"model": self.model, "max_tokens": self.max_tokens,
+                           "messages": [{"role": "user", "content": content}]}).encode()
+        req = urllib.request.Request(
+            self.base_url + "/chat/completions", data=body,
+            headers={"Content-Type": "application/json"})
+        if self.api_key:
+            req.add_header("Authorization", f"{self.auth_scheme} {self.api_key}")
+        try:
+            if self._is_local():
+                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                with opener.open(req, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode())
+            else:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = exc.read().decode(errors="replace")[:500]
+            except Exception:
+                detail = ""
+            raise LLMError(f"llm HTTP error {exc.code}: {detail}") from exc
+        except Exception as exc:
+            reason = getattr(exc, "reason", exc)
+            raise LLMError(f"llm request failed: {type(exc).__name__}: {reason}") from exc
+        choice = payload["choices"][0]
+        out = choice["message"]["content"]
+        usage = payload.get("usage") or {}
+        details = usage.get("completion_tokens_details") or {}
+        self.last_response_info = {
+            "top_keys": sorted(payload.keys()), "model_reported": payload.get("model"),
+            "finish_reason": choice.get("finish_reason"), "usage": usage,
+            "has_reasoning_content": bool((choice.get("message") or {}).get("reasoning_content")),
+            "reasoning_chars": len((choice.get("message") or {}).get("reasoning_content") or ""),
+            "content_chars": len(out or "")}
+        self.budget.record(model=self.model, purpose=purpose,
+                           prompt_chars=len(prompt), completion_chars=len(out or ""),
+                           live=True, usage_total=usage.get("total_tokens"),
+                           usage_prompt=usage.get("prompt_tokens"),
+                           usage_completion=usage.get("completion_tokens"),
+                           usage_reasoning=details.get("reasoning_tokens"))
+        return out or ""

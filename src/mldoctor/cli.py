@@ -41,12 +41,41 @@ def _client(args):
 def cmd_fix(args):
     from .events import EventBus
     from .pipeline import format_summary, run_pipeline
+    from . import proof as proof_mod
     bus = EventBus(listeners=[lambda e: print(f"[{e['seq']}] {e['type']}", flush=True)])
     s = run_pipeline(args.script, client=_client(args), bus=bus, k=args.k,
                      verify_k=args.verify_k, seed=args.seed,
-                     timeout=args.timeout, out_path=args.out, jobs=args.jobs)
+                     timeout=args.timeout, out_path=args.out, jobs=args.jobs,
+                     investigate=args.investigate, vision=args.vision)
     print(format_summary(s))
+    if args.proof:
+        path, b = proof_mod.write_bundle(args.script, s, args.proof)
+        print(f"proof: {path}")
+        proof_mod.export_patch_file(args.script, s, args.proof)
+    if args.export_patch:
+        p = proof_mod.export_patch_file(args.script, s, args.export_patch)
+        print(f"patch: {p}")
     return 0 if s["passed"] else 1
+
+
+def cmd_check(args):
+    runs = run_baseline(args.script, k=args.runs, seed=args.seed,
+                        timeout=args.timeout)
+    result = classify(runs)
+    print(f"symptom: {result['symptom']}")
+    print(f"reason: {result['reason']}")
+    print(f"metrics: {result['metrics']}")
+    return 0 if result["symptom"] == "healthy" else 1
+
+
+def cmd_recheck(args):
+    import json
+    from . import proof as proof_mod
+    with open(args.bundle) as fh:
+        bundle = json.load(fh)
+    out = proof_mod.recheck_bundle(bundle)
+    print(out["message"])
+    return 1 if out["verdict_mismatch"] else 0
 
 
 def cmd_serve(args):
@@ -85,7 +114,24 @@ def main(argv=None):
     fix.add_argument("--base-url", default=os.environ.get("MLDOCTOR_BASE_URL"))
     fix.add_argument("--model", default=os.environ.get("MLDOCTOR_MODEL"))
     fix.add_argument("--max-tokens", type=int, default=1024)
+    fix.add_argument("--investigate", action="store_true",
+                     help="run the fixed experiment-menu investigation loop (max 3)")
+    fix.add_argument("--vision", action="store_true",
+                     help="opt-in: send the loss-curve PNG with the diagnose probe")
+    fix.add_argument("--proof", default=None,
+                     help="write a proof bundle .json next to this path")
+    fix.add_argument("--export-patch", default=None,
+                     help="also write a .patch file plus markdown PR description")
     fix.set_defaults(func=cmd_fix)
+    check = sub.add_parser("check", help="exit 0 only when reproducible and healthy")
+    check.add_argument("script")
+    check.add_argument("--runs", type=int, default=3)
+    check.add_argument("--seed", type=int, default=0)
+    check.add_argument("--timeout", type=int, default=180)
+    check.set_defaults(func=cmd_check)
+    recl = sub.add_parser("recheck", help="re-run verification from a proof bundle.json")
+    recl.add_argument("bundle")
+    recl.set_defaults(func=cmd_recheck)
     serve = sub.add_parser("serve", help="local dashboard (127.0.0.1 only)")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)

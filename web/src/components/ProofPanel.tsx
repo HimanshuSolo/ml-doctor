@@ -16,8 +16,33 @@ function Row({ ok, title, detail }: { ok: boolean; title: string; detail: string
   );
 }
 
+function drawShareCard(s: State): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = 720; c.height = 400;
+  const g = c.getContext("2d");
+  if (!g) return c;
+  g.fillStyle = "#0b111c"; g.fillRect(0, 0, 720, 400);
+  g.fillStyle = "#e8eef6"; g.font = "bold 26px system-ui, sans-serif";
+  g.fillText("MLDoctor proof", 28, 52);
+  g.font = "15px ui-monospace, monospace"; g.fillStyle = "#9fb3c8";
+  const stamp = `${s.mode ?? "—"}${s.mode === "MOCK" ? " (simulated)" : ""}`;
+  g.fillText(`mode: ${stamp}`, 28, 92);
+  g.fillText(`script: ${s.script ?? "—"}`, 28, 118);
+  g.fillText(`symptom: ${s.symptom ?? "—"}`, 28, 144);
+  g.fillStyle = s.verdict === "PASS" ? "#3ecf8e" : "#e86a6a";
+  g.font = "bold 34px system-ui, sans-serif";
+  g.fillText(s.verdict ?? "NO VERDICT YET", 28, 205);
+  g.fillStyle = "#9fb3c8"; g.font = "14px ui-monospace, monospace";
+  g.fillText(`verification: ${s.nDone}/${s.nTotal} runs, ${s.nFailed} failed`, 28, 245);
+  if (s.verdictReason) g.fillText(s.verdictReason.slice(0, 74), 28, 270);
+  g.fillText("Generated client-side from real run state only.", 28, 372);
+  return c;
+}
+
 export default function ProofPanel({ s }: { s: State }) {
   const [copied, setCopied] = useState(false);
+  const [recheckCopied, setRecheckCopied] = useState(false);
+  const [cardUrl, setCardUrl] = useState<string | null>(null);
   const rows = [
     { ok: s.symptom !== null, title: "Reproduced from your code", detail: s.symptom ?? "waiting for baseline_completed" },
     { ok: s.diagnosis !== null, title: "Root cause isolated", detail: s.diagnosis ? `${s.diagnosis.culprit} — ${s.diagnosis.reason}` : "waiting for diagnosis" },
@@ -41,9 +66,33 @@ export default function ProofPanel({ s }: { s: State }) {
       <ul className="grid gap-2 sm:grid-cols-2">
         {rows.map((r) => <Row key={r.title} {...r} />)}
       </ul>
-      <button type="button" onClick={copy} disabled={s.phase === "idle"}
-        className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
-        {copied ? "✓ Copied summary" : "Copy Markdown summary"}</button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={copy} disabled={s.phase === "idle"}
+          className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
+          {copied ? "✓ Copied summary" : "Copy Markdown summary"}</button>
+        <button type="button" disabled={s.phase === "idle"} onClick={() => {
+          const a = document.createElement("a");
+          a.href = "/api/proof.json"; a.download = "mldoctor-proof.json"; a.click();
+        }} className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
+          Download proof bundle (.json)</button>
+        <button type="button" disabled={s.phase === "idle"} onClick={async () => {
+          const cmd = "mldoctor recheck mldoctor-proof.json";
+          try { await navigator.clipboard.writeText(cmd); } catch { /* clipboard unavailable */ }
+          setRecheckCopied(true); setTimeout(() => setRecheckCopied(false), 2000);
+        }} className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
+          {recheckCopied ? "✓ Copied" : "Copy recheck command"}</button>
+        <button type="button" disabled={s.phase === "idle"} onClick={() => setCardUrl(drawShareCard(s).toDataURL("image/png"))}
+          className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
+          Render share card (PNG)</button>
+      </div>
+      <p className="font-mono text-xs text-dim">Recheck: <code>mldoctor recheck mldoctor-proof.json</code></p>
+      {cardUrl ? (
+        <figure className="space-y-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardUrl} alt={`Share card: ${s.mode ?? "no mode"} ${s.verdict ?? "no verdict"}`} className="max-w-full rounded border border-line" />
+          <figcaption className="font-mono text-xs text-dim">Stamped {s.mode ?? "—"}{s.mode === "MOCK" ? " (simulated)" : ""} · rendered from real state only.</figcaption>
+        </figure>
+      ) : null}
     </section>
   );
 }

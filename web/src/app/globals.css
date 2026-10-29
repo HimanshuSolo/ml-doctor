@@ -1,28 +1,43 @@
 @import "tailwindcss";
-/* Quiet mission control tokens. 8px spacing grid: use Tailwind steps 1,2,3,4,6,8,10. */
+/* MLDoctor palette — refined editorial lab theme.
+   Light is the default (paper + ink + deep teal accent); dark flips surfaces.
+   Accent is a muted deep teal, never neon. Status colours keep their meaning. */
 @theme {
-  --color-abyss: #07090d; --color-panel: #0a0e14; --color-panel2: #0d1219;
-  --color-line: #1c2530; --color-tealx: #2ee6c8; --color-bluex: #6cb8e8;
-  --color-amberx: #e8b64c; --color-redx: #e86a6a; --color-greenx: #3ecf8e;
-  --color-ink: #e8edf3; --color-dim: #94a3b5;
-  --font-sans: ui-sans-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-abyss: var(--abyss); --color-panel: var(--panel); --color-panel2: var(--panel2);
+  --color-line: var(--line); --color-tealx: var(--accent); --color-bluex: var(--accent2);
+  --color-skyx: var(--accent2); --color-brand: var(--accent); --color-inkdeep: #16211f;
+  --color-amberx: #b45309; --color-redx: #b42318; --color-greenx: #067647;
+  --color-ink: var(--inkc); --color-dim: var(--dimc);
+  --font-sans: "Open Sans", ui-sans-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --duration-150: 150ms; --duration-300: 300ms; --duration-600: 600ms; --duration-900: 900ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
+:root {
+  --abyss: #f2f3f1; --panel: #ffffff; --panel2: #e9edea; --line: #d3dad4;
+  --inkc: #182420; --dimc: #52615a;
+  --accent: #0b6b5e; --accent-hover: #095a4f; --accent2: #3e5c76;
+  --header-h: 3.25rem;
+}
+[data-theme="dark"] {
+  --abyss: #101613; --panel: #171d1a; --panel2: #1e2622; --line: #2c3833;
+  --inkc: #e6ece8; --dimc: #9aa8a0;
+  --accent: #5fb8a6; --accent-hover: #7cc9b8; --accent2: #8fb0d1;
+}
 html { scroll-behavior: smooth; }
-section { scroll-margin-top: 4.5rem; }
-body { background: var(--color-abyss); color: var(--color-ink); font-family: var(--font-sans); }
-.label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-dim); }
-::selection { background: rgba(46, 230, 200, 0.3); }
-:focus-visible { outline: 2px solid var(--color-tealx); outline-offset: 2px; }
+section { scroll-margin-top: calc(var(--header-h) + 1rem); }
+body { background: var(--abyss); color: var(--inkc); font-family: var(--font-sans); }
+.label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dimc); font-weight: 600; }
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2 { text-wrap: balance; }
-/* Decorative only: slow grid drift, paused off-screen/hidden/reduced-motion by the Background component. */
 @keyframes grid-drift { from { background-position: 0 0, 0 0; } to { background-position: 44px 44px, 44px 44px; } }
 .bg-grid { animation: grid-drift 24s linear infinite; }
+@keyframes spiral-spin { to { transform: rotate(360deg); } }
+.spiral-spin { animation: spiral-spin 48s linear infinite; transform-origin: center; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .bg-grid { animation: none; }
+  .bg-grid, .spiral-spin { animation: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 @keyframes drawline { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }

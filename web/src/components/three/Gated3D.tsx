@@ -6,6 +6,7 @@ import type { Evidence, RunDatum } from "@/lib/events";
 
 const LossRibbons3D = dynamic(() => import("./LossRibbons3D"), { ssr: false });
 const RunCubes3D = dynamic(() => import("./RunCubes3D"), { ssr: false });
+const Trajectory3D = dynamic(() => import("./Trajectory3D"), { ssr: false });
 
 function webglOk(): boolean {
   try { const c = document.createElement("canvas"); return Boolean(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; }
@@ -36,6 +37,14 @@ export function RibbonsGate({ evidence }: { evidence: Evidence | null }) {
   return <div ref={ref}>{reduce || !ok
     ? <p className="text-dim text-sm">3D ribbons off ({reduce ? "reduced motion" : "WebGL unavailable"}) — the 2D loss curves above show the same telemetry.</p>
     : <LossRibbons3D evidence={evidence} paused={paused} />}</div>;
+}
+export function TrajectoryGate({ evidence }: { evidence: Evidence | null }) {
+  const reduce = useReducedMotion();
+  const { ref, paused } = usePaused();
+  const ok = useWebglOk();
+  return <div ref={ref}>{reduce || !ok
+    ? <p className="text-dim text-sm">3D trajectory off ({reduce ? "reduced motion" : "WebGL unavailable"}) — hash fingerprints above show the same divergence.</p>
+    : <Trajectory3D evidence={evidence} paused={paused} />}</div>;
 }
 export function CubesGate({ runs, verdict }: { runs: RunDatum[]; verdict: string | null }) {
   const reduce = useReducedMotion();

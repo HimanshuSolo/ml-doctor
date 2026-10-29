@@ -6,11 +6,13 @@ import type { ServerState } from "@/lib/events";
 import { API_BASE, apiUrl } from "@/lib/api";
 import { DiffView, HashCells, LossChart, RunGrid } from "@/components/charts";
 import { EventLog, Hud, Odometer, stepIndex } from "@/components/hud";
-import { CubesGate, RibbonsGate } from "@/components/three/Gated3D";
+import { CubesGate, RibbonsGate, TrajectoryGate } from "@/components/three/Gated3D";
+import InvestigationPanel from "@/components/InvestigationPanel";
 import Background from "@/components/chrome/Background";
 import CodeIntake from "@/components/CodeIntake";
 import ProofPanel from "@/components/ProofPanel";
 import HeroField from "@/components/chrome/HeroField";
+import FluidBlob from "@/components/chrome/FluidBlob";
 import Reveal from "@/components/chrome/Reveal";
 import Rail from "@/components/chrome/Rail";
 import StoryPinned from "@/components/chrome/StoryPinned";
@@ -46,8 +48,10 @@ export default function Page() {
   const [verifyK, setVerifyK] = useState("");
   const [live, setLive] = useState(false);
   const [pacing, setPacing] = useState(false);
+  const [investigate, setInvestigate] = useState(false);
+  const [vision, setVision] = useState(false);
   const [conn, setConn] = useState<"connecting" | "open" | "error">("connecting");
-  const [needToken, setNeedToken] = useState(() => !hasToken());
+  const [needToken, setNeedToken] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
   const [beforeAfter, setBeforeAfter] = useState<"before" | "after">("before");
   const reduceMotion = useReducedMotion();
@@ -73,9 +77,9 @@ export default function Page() {
 
   useEffect(() => {
     const t = getToken();
-    if (!t) { dispatch({ kind: "run_error", error: "Token missing. Paste the ?token= printed by `mldoctor serve`." }); return; }
-    // One-time subscription to external systems (fetch + EventSource): the intended effect body per React docs.
+    // One-time mount check + subscription to external systems (fetch + EventSource).
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!t) { setNeedToken(true); dispatch({ kind: "run_error", error: "Token missing. Paste the ?token= printed by `mldoctor serve`." }); return; }
     connect(t);
     return () => esRef.current?.close();
   }, []);
@@ -95,7 +99,7 @@ export default function Page() {
     dispatch({ kind: "run_started", script: target });
     try {
       const r = await fetch(apiUrl("/api/run"), { method: "POST", headers: { "X-MLDoctor-Token": token, "Content-Type": "application/json" },
-        body: JSON.stringify({ script: target, k, verify_k: verifyK ? Number(verifyK) : null, live, demo_pacing: pacing && !live }) });
+        body: JSON.stringify({ script: target, k, verify_k: verifyK ? Number(verifyK) : null, live, demo_pacing: pacing && !live, investigate, vision }) });
       if (!r.ok) { setDemoQueue([]); dispatch({ kind: "run_error", error: errorForStatus(r.status, await r.text()) }); }
       else fetch(apiUrl("/api/state"), { headers: { "X-MLDoctor-Token": token } })
         .then((x) => (x.ok ? x.json() : null))
@@ -148,9 +152,17 @@ export default function Page() {
     return cards.sort((a, b) => a.rank - b.rank);
   }, [s.symptom, s.reason, s.diagnosis, s.patch]);
   const evidence = beforeAfter === "before" ? s.evidenceBefore : s.evidenceAfter;
-  // Sections are never hidden waiting for motion: content is visible in the
-  // prerendered HTML; the reveal is only a small slide once scrolled into view.
-  const section = { initial: reduceMotion ? false : { opacity: 1, y: 10 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } } as const;
+  // Sections fade, rise and settle as they scroll into view (once each).
+  const section = { initial: reduceMotion ? false : { opacity: 0, y: 40 }, whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, margin: "-70px" }, transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1] as const } } as const;
+  const heading = (id: string, text: string) => (
+    <div className="space-y-2">
+      <h2 id={id} className="text-2xl font-bold">{text}</h2>
+      <motion.span aria-hidden="true" className="block h-[3px] w-14 origin-left rounded bg-tealx"
+        initial={reduceMotion ? false : { scaleX: 0 }} whileInView={{ scaleX: 1 }}
+        viewport={{ once: true, margin: "-70px" }} transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }} />
+    </div>
+  );
 
   return (
     <div className="min-h-screen">
@@ -158,29 +170,32 @@ export default function Page() {
       <main className="mx-auto max-w-6xl space-y-10 px-4 py-6">
         {s.error && <div role="alert" className="rounded border border-redx bg-redx/10 p-3 text-sm text-redx">{s.error}</div>}
         {needToken && (
-          <form className="flex flex-wrap items-center gap-2 rounded border border-line bg-panel p-3 text-sm" onSubmit={(e) => { e.preventDefault(); const t = tokenDraft.trim(); if (!t) return; sessionStorage.setItem("mldoctor-token", t); setNeedToken(false); setTokenDraft(""); connect(t); }}>
+          <form className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-panel p-3 text-sm" onSubmit={(e) => { e.preventDefault(); const t = tokenDraft.trim(); if (!t) return; sessionStorage.setItem("mldoctor-token", t); setNeedToken(false); setTokenDraft(""); connect(t); }}>
             <label htmlFor="token-input">Paste token from the server terminal:
               <input id="token-input" value={tokenDraft} onChange={(e) => setTokenDraft(e.target.value)} placeholder="token…" autoComplete="off" className="ml-2 rounded border border-line bg-panel2 p-2 font-mono text-sm" /></label>
-            <button type="submit" className="rounded bg-tealx px-3 py-2 font-semibold text-black">Connect</button>
+            <button type="submit" className="rounded-md px-3 py-2 font-semibold transition-opacity hover:opacity-90" style={{ background: "var(--accent)", color: "var(--panel)" }}>Connect</button>
           </form>
         )}
         {conn === "error" && !s.error && <div role="alert" className="rounded border border-amberx bg-amberx/10 p-3 text-sm text-amberx">Event stream disconnected. Data shown is the last server-reported state.</div>}
 
-        <motion.section {...section} aria-labelledby="h-hero" className="relative -mx-4 space-y-4 overflow-hidden px-4 pb-8 pt-6">
+        <motion.section {...section} aria-labelledby="h-hero" className="relative -mx-4 space-y-5 overflow-hidden px-4 pb-8 pt-8">
           <HeroField runs={s.runs} nTotal={s.nTotal} verdict={s.verdict} />
+          <FluidBlob />
           <div className="relative">
           <p className="label">MLDoctor · reproducible-training debugger</p>
-          <h1 id="h-hero" className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-tight">
+          <h1 id="h-hero" className="max-w-2xl text-5xl font-semibold leading-[1.04] tracking-tight sm:text-6xl">
             {"Debug the run. Prove the fix.".split(" ").map((w, i) => (
               <motion.span key={i} className="mr-[0.28em] inline-block"
-                initial={reduceMotion ? false : { opacity: 0, y: 10, clipPath: "inset(0 0 100% 0)" }}
+                initial={reduceMotion ? false : { opacity: 0, y: 22, clipPath: "inset(0 0 100% 0)" }}
                 animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
-                transition={{ duration: 0.6, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}>{w}</motion.span>
+                transition={{ duration: 0.7, delay: 0.08 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}>{w}</motion.span>
             ))}
           </h1>
-          <p className="max-w-2xl text-dim">Reproduce, investigate, patch and verify a broken training script. Every number below comes from a server event — nothing is simulated.</p>
+          <motion.p className="max-w-2xl text-dim"
+            initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}>Reproduce, investigate, patch and verify a broken training script. Every number below comes from a server event — nothing is simulated.</motion.p>
           <Reveal delay={0.08}>
-          <form className="grid gap-3 rounded border border-line bg-panel p-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void run(); }}>
+          <form className="grid gap-3 rounded-lg border border-line bg-panel p-5 shadow-[0_18px_45px_-28px_rgba(24,36,32,0.45)] sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void run(); }}>
             <div className="sm:col-span-2">
               <CodeIntake script={script} setScript={setScript} fixtures={fixtures}
                 getToken={() => tokenRef.current}
@@ -194,38 +209,46 @@ export default function Page() {
             <div className="flex flex-wrap items-end gap-4 pb-1 text-sm">
               <label><input type="checkbox" checked={live} disabled={!s.liveConfigured} onChange={(e) => setLive(e.target.checked)} /> Live model{!s.liveConfigured ? " (not configured)" : ""}</label>
               <label><input type="checkbox" checked={pacing} disabled={live} onChange={(e) => setPacing(e.target.checked)} /> Demo pacing (MOCK only)</label>
+              <label><input type="checkbox" checked={investigate} onChange={(e) => setInvestigate(e.target.checked)} /> Investigate (experiment menu, max 3)</label>
+              <label><input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} /> Vision (loss-curve image, opt-in)</label>
             </div>
-            <button type="submit" disabled={s.phase === "running"} className="rounded bg-tealx px-6 py-3.5 text-base font-semibold text-black transition-opacity duration-150 hover:opacity-90 disabled:opacity-50">{s.phase === "running" ? "Running…" : "Run pipeline"}</button>
+            <motion.button whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} type="submit" disabled={s.phase === "running"} className="rounded-md px-6 py-3.5 text-base font-semibold transition-opacity duration-150 hover:opacity-90 disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--panel)" }}>{s.phase === "running" ? "Running…" : "Run pipeline"}</motion.button>
             <div className="flex flex-col gap-1">
-              <button type="button" onClick={playDemo} disabled={s.phase === "running"} className="rounded border border-tealx/60 px-6 py-2 text-sm font-semibold text-tealx transition-colors duration-150 hover:bg-tealx/10 disabled:opacity-50">
+              <button type="button" onClick={playDemo} disabled={s.phase === "running"} className="rounded-md border border-tealx px-6 py-2 text-sm font-semibold text-tealx transition-colors duration-150 hover:bg-tealx/10 disabled:opacity-50">
                 {demoQueue.length > 0 ? `Playing demo… ${DEMO_SCRIPTS.length - demoQueue.length}/${DEMO_SCRIPTS.length}` : "▶ Play full demo (repro → diverge → healthy)"}</button>
               <p className="font-mono text-xs text-dim" role="status">{s.phase === "idle" ? "idle — no run yet" : s.phase}{demoQueue.length > 0 ? ` · demo queue: ${demoQueue.join(", ")}` : ""} · step: {stepIndex(s) >= 0 ? ["Reproduce", "Classify", "Investigate", "Patch", "Verify"][stepIndex(s)] : "—"}</p>
             </div>
           </form>
           </Reveal>
           </div>
-          <Rail s={s} />
-          <EventLog s={s} />
+          <Reveal delay={0.05}><Rail s={s} /></Reveal>
+          <Reveal delay={0.12}><EventLog s={s} /></Reveal>
         </motion.section>
         <StoryPinned s={s} />
 
         <motion.section {...section} aria-labelledby="h-repro" className="space-y-3">
-          <h2 id="h-repro" className="text-2xl font-bold">Reproduce</h2>
+          {heading("h-repro", "Reproduce")}
           <div className="flex gap-2" role="group" aria-label="Evidence toggle">
             {(["before", "after"] as const).map((v) => <button key={v} type="button" aria-pressed={beforeAfter === v} onClick={() => setBeforeAfter(v)} className={`rounded border px-3 py-1 text-sm ${beforeAfter === v ? "border-bluex text-bluex" : "border-line text-dim"}`}>{v === "before" ? "Before patch" : "After patch"}</button>)}
           </div>
-          <LossChart evidence={evidence} title={beforeAfter === "before" ? "Baseline loss curves" : "Patched loss curves"} />
-          <HashCells evidence={evidence} title={beforeAfter === "before" ? "Baseline hash fingerprints" : "Patched hash fingerprints"} />
-          <h3 className="label">Loss ribbons · 3D</h3>
-          <RibbonsGate evidence={evidence} />
+          <Reveal><LossChart evidence={evidence} title={beforeAfter === "before" ? "Baseline loss curves" : "Patched loss curves"} /></Reveal>
+          <Reveal delay={0.08}><HashCells evidence={evidence} title={beforeAfter === "before" ? "Baseline hash fingerprints" : "Patched hash fingerprints"} /></Reveal>
+          <Reveal delay={0.05}><h3 className="label">Loss ribbons · 3D</h3></Reveal>
+          <Reveal delay={0.1}><RibbonsGate evidence={evidence} /></Reveal>
+          <Reveal delay={0.05}><h3 className="label">Trajectory fan · 3D <span className="font-normal normal-case">(random 3D projection of parameters; axes have no meaning)</span></h3></Reveal>
+          <Reveal delay={0.1}><TrajectoryGate evidence={evidence} /></Reveal>
         </motion.section>
 
         <motion.section {...section} aria-labelledby="h-inv" className="space-y-3">
-          <h2 id="h-inv" className="text-2xl font-bold">Investigate</h2>
+          {heading("h-inv", "Investigate")}
+          <Reveal><InvestigationPanel s={s} /></Reveal>
           {hypotheses.length === 1 && !s.diagnosis && !s.symptom ? <p className="text-dim text-sm">No hypothesis yet — the diagnosis card appears only when the server sends it.</p> : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {hypotheses.map((c) => (
-                <motion.article key={c.id} layout={!reduceMotion} className="rounded border border-line bg-panel p-4">
+              {hypotheses.map((c, ci) => (
+                <motion.article key={c.id} layout={!reduceMotion}
+                  initial={reduceMotion ? false : { opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.6, delay: ci * 0.09, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-lg border border-line bg-panel p-4">
                   <h3 className="font-semibold">{c.title}</h3><p className="mt-1 text-sm text-dim">{c.body}</p>
                 </motion.article>
               ))}
@@ -234,28 +257,35 @@ export default function Page() {
         </motion.section>
 
         <motion.section {...section} aria-labelledby="h-patch" className="space-y-3">
-          <h2 id="h-patch" className="text-2xl font-bold">Patch</h2>
+          {heading("h-patch", "Patch")}
           {s.patchedPath && <p className="font-mono text-xs text-dim">Patched file: {s.patchedPath}</p>}
-          <DiffView diff={s.diff} violations={s.violations} />
+          <Reveal><DiffView diff={s.diff} violations={s.violations} /></Reveal>
         </motion.section>
 
         <motion.section {...section} aria-labelledby="h-verify" className="space-y-4">
-          <h2 id="h-verify" className="text-2xl font-bold">Verify</h2>
-          <Odometer value={s.nDone} total={s.nTotal} />
-          <RunGrid nDone={s.nDone} nTotal={s.nTotal} nFailed={s.nFailed} runs={s.runs} verdict={s.verdict} />
-          <h3 className="label">Run cubes · 3D</h3>
-          <CubesGate runs={s.runs} verdict={s.verdict} />
+          {heading("h-verify", "Verify")}
+          <Reveal><Odometer value={s.nDone} total={s.nTotal} /></Reveal>
+          <Reveal delay={0.08}><RunGrid nDone={s.nDone} nTotal={s.nTotal} nFailed={s.nFailed} runs={s.runs} verdict={s.verdict} /></Reveal>
+          <Reveal delay={0.05}><h3 className="label">Run cubes · 3D</h3></Reveal>
+          <Reveal delay={0.1}><CubesGate runs={s.runs} verdict={s.verdict} /></Reveal>
           <div aria-live="polite" className={`inline-block rounded border-4 px-6 py-3 text-3xl font-black tracking-widest ${s.verdict === "PASS" ? "border-greenx text-greenx" : s.verdict === "FAIL" ? "border-redx text-redx" : "border-line text-dim"}`}>
             {s.verdict ?? "NO VERDICT YET"}
           </div>
           {s.verdictReason && <p className="text-sm text-dim">{s.verdictReason}</p>}
           {s.verdict === "FAIL" && <p className="text-sm">This patch was rejected or did not verify. That is a real result, shown with the same weight as a pass.</p>}
-          <ProofPanel s={s} />
+          {s.verdict !== null && (
+            <div className="space-y-2">
+              <h3 className="label">3D result chart — {s.verdict} (from real telemetry only)</h3>
+              <TrajectoryGate evidence={s.evidenceAfter ?? s.evidenceBefore} />
+              <RibbonsGate evidence={s.evidenceAfter ?? s.evidenceBefore} />
+            </div>
+          )}
+          <Reveal><ProofPanel s={s} /></Reveal>
         </motion.section>
 
         <motion.section {...section} aria-labelledby="h-report" className="space-y-3">
-          <h2 id="h-report" className="text-2xl font-bold">Report</h2>
-          {s.phase === "done" ? <button type="button" className="rounded bg-tealx px-4 py-2 font-semibold text-black" onClick={async () => { const r = await fetch(apiUrl("/api/report"), { headers: { "X-MLDoctor-Token": tokenRef.current } }); if (!r.ok) return; const url = URL.createObjectURL(await r.blob()); const a = document.createElement("a"); a.href = url; a.download = "mldoctor-report.html"; a.click(); URL.revokeObjectURL(url); }}>Download HTML report</button>
+          {heading("h-report", "Report")}
+          {s.phase === "done" ? <button type="button" className="rounded-md px-4 py-2 font-semibold transition-opacity hover:opacity-90" style={{ background: "var(--accent)", color: "var(--panel)" }} onClick={async () => { const r = await fetch(apiUrl("/api/report"), { headers: { "X-MLDoctor-Token": tokenRef.current } }); if (!r.ok) return; const url = URL.createObjectURL(await r.blob()); const a = document.createElement("a"); a.href = url; a.download = "mldoctor-report.html"; a.click(); URL.revokeObjectURL(url); }}>Download HTML report</button>
             : <p className="text-dim text-sm">Report download appears after a run finishes.</p>}
           <h3 className="font-semibold">Run history (saved in this browser)</h3>
           {s.history.length === 0 ? <p className="text-dim text-sm">No completed runs yet.</p>

@@ -9,7 +9,8 @@ import re
 
 from .runner import classify, run_baseline
 
-REQUIRED_RUNS = {"healthy": 2, "diverged": 5, "non_reproducible": 10, "error": 2}
+REQUIRED_RUNS = {"healthy": 2, "diverged": 5, "non_reproducible": 10,
+                  "error": 2, "leakage": 5}
 _LOSS_MASKS = ("nan_to_num", "torch.clamp", "clip_grad", "loss = min", "loss = max")
 
 
@@ -37,6 +38,8 @@ def check_patch_diff(original, patched):
             v.append(f"masks loss ({tok})")
     if "random.shuffle" in original and "random.shuffle" not in patched:
         v.append("removes shuffle instead of seeding")
+    if "train_test_split" in original and ".drop(" in patched and ".drop(" not in original:
+        v.append("leakage masking (drops rows)")
     if re.search(r"\.seed\(\d+\)", patched) and not re.search(r"\.seed\(\d+\)", original):
         v.append("fixed seed literal ignores MLDOCTOR_SEED")
     # Dataset / model / check integrity from changed lines.
@@ -56,6 +59,13 @@ def check_patch_diff(original, patched):
         v.append("changes dataset (subset)")
     if any("nn.Linear" in l or "nn.Sequential" in l for l in removed + added):
         v.append("changes model architecture")
+    _joined_added = "\n".join(added)
+    if "train_test_split" in patched and any(
+            tok in _joined_added for tok in ("drop_duplicates", "dedup_rows", "np.unique")):
+        _split_at = patched.find("train_test_split")
+        if min((patched.find(t) for t in ("drop_duplicates", "dedup_rows", "np.unique")
+                if t in _joined_added), default=-1) > _split_at:
+            v.append("leakage masking (dedup after split)")
     for l in removed:
         if ("assert" in l or "isfinite" in l) and l.strip() not in patched:
             v.append("removes or weakens a check"); break
@@ -93,6 +103,18 @@ def run_payload(run, run_index, status):
     }
 
 
+def trajectory_of(runs):
+    """Random 3D projection (fixed generator, independent of MLDOCTOR_SEED),
+    downsampled to at most 200 points per run."""
+    out = []
+    for r in runs:
+        pts = [t["proj"] for t in r["telemetry"] if t.get("proj")]
+        idx = (range(len(pts)) if len(pts) <= 200 else
+               [round(i * (len(pts) - 1) / 199) for i in range(200)])
+        out.append([pts[i] for i in dict.fromkeys(idx)])
+    return out
+
+
 def evidence_of(runs):
     return {
         "loss_curves": [downsample([_finite_or_none(t["loss"])
@@ -102,11 +124,14 @@ def evidence_of(runs):
         "hash_fingerprints": [[t["param_hash"][:6] for t in r["telemetry"]]
                               for r in runs],
         "metrics": [r["final_metric"] for r in runs],
+        "trajectory": trajectory_of(runs),
+        "split": (runs[0].get("split") if runs else None),
     }
 
 
 def verify_fix(patched_script, original_symptom, expected="healthy",
-               k=None, seed=0, timeout=180, original_text=None, progress=None):
+               k=None, seed=0, timeout=180, original_text=None, progress=None,
+               original_metric=None):
     with open(patched_script) as fh:
         patched_text = fh.read()
     violations = check_patch_diff(original_text, patched_text) if original_text else []
@@ -146,6 +171,27 @@ def verify_fix(patched_script, original_symptom, expected="healthy",
                 "reason": "finite, sane losses on all seeds" if bad is None else bad[1],
                 "violations": [], "k": k, "seeds": seeds, "mode": "seeds",
                 "metrics": [r["final_metric"] for r in runs], "evidence": evidence_of(runs)}
+    if original_symptom == "leakage":
+        runs, n_failed = [], 0
+        for i in range(k):
+            run = run_baseline(patched_script, k=1, seed=seed, timeout=timeout)[0]
+            runs.append(run)
+            overlap = (run.get("split") or {}).get("overlap", 0)
+            if run["returncode"] != 0 or overlap > 0:
+                n_failed += 1
+            emit(i + 1, n_failed, run,
+                 "error" if run["returncode"] != 0 else "leakage" if overlap > 0 else "clean")
+        ok = n_failed == 0
+        before = original_metric
+        after = runs[-1]["final_metric"] if runs else None
+        return {"passed": ok, "symptom": "healthy" if ok else "leakage",
+                "reason": ("train/test overlap 0 on all runs" if ok else
+                           "train/test overlap remains"),
+                "violations": [], "k": k, "seeds": [seed] * k, "mode": "same-seed",
+                "metrics": [r["final_metric"] for r in runs],
+                "metric_before": before, "metric_after": after,
+                "split_after": (runs[0].get("split") if runs else None),
+                "evidence": evidence_of(runs)}
     runs, ref, n_failed = [], None, 0
     for i in range(k):
         run = run_baseline(patched_script, k=1, seed=seed, timeout=timeout)[0]

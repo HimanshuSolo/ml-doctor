@@ -1,0 +1,3 @@
+{"seq": 0, "model": "meta-models/muse-spark-open", "purpose": "investigate", "prompt_chars": 428, "completion_chars": 246, "live": true, "usage_total": 953, "usage_prompt": 251, "usage_completion": 702, "usage_reasoning": 640}
+{"seq": 1, "model": "meta-models/muse-spark-open", "purpose": "diagnose", "prompt_chars": 2188, "completion_chars": 507, "live": true, "usage_total": 4140, "usage_prompt": 742, "usage_completion": 3398, "usage_reasoning": 3250}
+{"seq": 2, "model": "meta-models/muse-spark-open", "purpose": "patch", "prompt_chars": 2305, "completion_chars": 868, "live": true, "usage_total": 4247, "usage_prompt": 762, "usage_completion": 3485, "usage_reasoning": 3188}

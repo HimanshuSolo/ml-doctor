@@ -17,7 +17,7 @@ export default function StoryPinned({ s }: { s: State }) {
   const pct = s.nTotal > 0 ? Math.min(100, Math.round((100 * s.nDone) / s.nTotal)) : 0;
 
   return (
-    <div className="sticky top-14 z-40 -mx-4 border-y border-line bg-abyss/90 px-4 py-2 backdrop-blur">
+    <div className="relative -mx-4 border-y border-line bg-panel/70 px-4 py-2">
       <div className="mx-auto flex max-w-6xl items-center gap-3">
         <ol className="flex flex-1 items-center gap-1 overflow-x-auto">
           {NAMES.map((n, i) => (
@@ -39,7 +39,7 @@ export default function StoryPinned({ s }: { s: State }) {
         </div>
       </div>
       {/* Decorative only: page scroll position hairline, not telemetry. */}
-      {!reduce && <motion.div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-left bg-tealx/50" style={{ scaleX: hairline }} />}
+      {!reduce && <motion.div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-tealx" style={{ scaleX: hairline }} />}
     </div>
   );
 }

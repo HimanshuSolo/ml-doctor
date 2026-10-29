@@ -1,0 +1,30 @@
+--- original.py
++++ patched.py
+@@ -7,11 +7,12 @@
+ import torch.nn as nn
+ from sklearn.datasets import load_digits
+ from sklearn.model_selection import train_test_split
++from sklearn.preprocessing import StandardScaler
+ 
+ SEED = int(os.environ.get("MLDOCTOR_SEED", "0"))
+ EPOCHS = 3
+ BATCH = 128
+-LR = 5.0  # BUG: far too high, combined with raw 0-16 pixel values below.
++LR = 0.05  # lowered from 5.0: sane LR for normalized inputs
+ 
+ 
+ def main():
+@@ -20,10 +21,10 @@
+     torch.manual_seed(SEED)
+     x, y = load_digits(return_X_y=True)
+     xtr, xte, ytr, yte = train_test_split(x, y, test_size=0.2, random_state=SEED)
+-    # BUG: raw pixel values 0-16, no normalization.
+-    xtr_t = torch.tensor(xtr, dtype=torch.float32)
++    scaler = StandardScaler().fit(xtr)
++    xtr_t = torch.tensor(scaler.transform(xtr), dtype=torch.float32)
+     ytr_t = torch.tensor(ytr, dtype=torch.long)
+-    xte_t = torch.tensor(xte, dtype=torch.float32)
++    xte_t = torch.tensor(scaler.transform(xte), dtype=torch.float32)
+     yte_t = torch.tensor(yte, dtype=torch.long)
+     loader = torch.utils.data.DataLoader(
+         torch.utils.data.TensorDataset(xtr_t, ytr_t), batch_size=BATCH,

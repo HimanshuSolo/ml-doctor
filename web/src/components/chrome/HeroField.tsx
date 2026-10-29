@@ -10,7 +10,7 @@ import type { Verdict } from "@/lib/reducer";
 //   (run_index position, status color, peak_loss height). Nothing draws before
 //   its verify_progress event arrives. Verdict ring only from completion.
 const STATUS_COLOR: Record<string, string> = {
-  identical: "#2ee6c8", finite: "#6cb8e8", different: "#e8b64c", diverged: "#e86a6a",
+  identical: "#2a9d8f", finite: "#7a9cc6", different: "#e8b64c", diverged: "#e86a6a",
 };
 
 export default function HeroField({ runs, nTotal, verdict }: { runs: RunDatum[]; nTotal: number; verdict: Verdict | null }) {
@@ -45,7 +45,7 @@ export default function HeroField({ runs, nTotal, verdict }: { runs: RunDatum[];
         const peak = typeof r.peak_loss === "number" && isFinite(r.peak_loss) ? Math.min(r.peak_loss, 10) : 1;
         const bh = (Math.log10(peak + 1) / 1.05) * h * 0.16 + h * 0.03;
         const grad = ctx.createLinearGradient(0, h, 0, h - bh);
-        const c = STATUS_COLOR[r.status] ?? "#6cb8e8";
+        const c = STATUS_COLOR[r.status] ?? "#7a9cc6";
         grad.addColorStop(0, c + "22");
         grad.addColorStop(1, c);
         ctx.fillStyle = grad;

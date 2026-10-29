@@ -28,7 +28,7 @@ function Ribbon({ curve, index }: { curve: (number | null)[]; index: number }) {
     g.setIndex(idx); g.computeVertexNormals();
     return g;
   }, [curve, index]);
-  return <mesh geometry={geom}><meshStandardMaterial color={index === 0 ? "#2ee6c8" : `hsl(${204 + index * 18}, 70%, 60%)`} side={THREE.DoubleSide} roughness={0.45} metalness={0.1} /></mesh>;
+  return <mesh geometry={geom}><meshStandardMaterial color={index === 0 ? "#5fb8a6" : `hsl(${204 + index * 18}, 70%, 60%)`} side={THREE.DoubleSide} roughness={0.45} metalness={0.1} /></mesh>;
 }
 export default function LossRibbons3D({ evidence, paused }: { evidence: Evidence | null; paused: boolean }) {
   if (!evidence?.loss_curves?.length) return <p className="text-dim text-sm">No telemetry yet for 3D.</p>;

@@ -49,7 +49,21 @@ mldoctor fix fixtures/diverge.py --verify-k 5
 MLDOCTOR_BASE_URL=... MLDOCTOR_API_KEY=... MLDOCTOR_MODEL=... mldoctor fix script.py --live
 ```
 
-`--live` is **UNVERIFIED against Baseten** until a live check is done. Text-only input; no image input yet (Baseten request format for images not confirmed).
+`--live` is verified against the configured provider (see results table below). Opt-in `--vision` sends a small loss-curve PNG, but the live vision probe timed out once with no retry, so live vision is **text-only** in practice; reports state whether an image was sent. Mock vision is always labeled simulated.
+
+## Results (controlled fixtures)
+
+| Fixture | Symptom | Mock verdict | Live verdict |
+|---|---|---|---|
+| healthy.py | healthy | PASS | — |
+| repro.py | non_reproducible | PASS (10 runs) | FAIL — patch rejected (replaces shuffle instead of seeding) |
+| diverge.py | diverged | PASS (5 seeds) | FAIL — masks loss (clip_grad) |
+| leakage.py | leakage | PASS expected | FAIL — dedup misplaced (leakage masking) |
+
+All fixtures are controlled, known-bug cases, not real-world validation.
+
+Evidence (ledgers, proof bundles, model + date) lives in
+[docs/sample-reports/README.md](/home/himanshu/projects/meta-hackathon/docs/sample-reports/README.md).
 
 ## Dashboard
 

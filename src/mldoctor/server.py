@@ -135,6 +135,30 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
                         media_type="text/html",
                         headers={"Content-Disposition": "attachment; filename=mldoctor-report.html"})
 
+    @app.get("/api/proof.json")
+    def proof_json(request: Request):
+        check_token(request)
+        if not app.state.summary:
+            raise HTTPException(404, "no finished run yet")
+        from . import proof as proof_mod
+        from fastapi.responses import JSONResponse
+        bundle = proof_mod.build_bundle(app.state.summary.get("script", "?"),
+                                        app.state.summary)
+        return JSONResponse(bundle, headers={
+            "Content-Disposition": "attachment; filename=mldoctor-proof.json"})
+
+    @app.get("/api/proof.html")
+    def proof_html(request: Request):
+        check_token(request)
+        if not app.state.summary:
+            raise HTTPException(404, "no finished run yet")
+        from . import proof as proof_mod
+        from fastapi.responses import Response
+        bundle = proof_mod.build_bundle(app.state.summary.get("script", "?"),
+                                        app.state.summary)
+        return Response(proof_mod.bundle_html(bundle), media_type="text/html",
+                        headers={"Content-Disposition": "attachment; filename=mldoctor-proof.html"})
+
     @app.post("/api/run")
     async def run(request: Request):
         check_token(request)
@@ -168,7 +192,9 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
                 app.state.summary = run_pipeline(
                     script, client=make_client(), bus=bus,
                     k=int(body.get("k", 2)), verify_k=body.get("verify_k"),
-                    timeout=int(body.get("timeout", 180)))
+                    timeout=int(body.get("timeout", 180)),
+                    investigate=bool(body.get("investigate")),
+                    vision=bool(body.get("vision")))
             except Exception as exc:  # surfaced to UI, not hidden
                 bus.emit("pipeline_failed", error=str(exc))
                 app.state.summary = {"passed": False, "error": str(exc)}

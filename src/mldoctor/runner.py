@@ -36,6 +36,17 @@ def _losses(run):
 
 def classify(runs, diverge_ratio=DIVERGE_RATIO):
     """Classify symptom from baseline runs. Returns a small details dict."""
+    # Natural datasets share a few identical rows by chance (load_digits has
+    # ~3%), so flag leakage only above a 5% test-row overlap ratio.
+    for i, r in enumerate(runs):
+        split = r.get("split") or {}
+        if (split.get("overlap_ratio") or 0) > 0.05:
+            return {"symptom": "leakage",
+                    "reason": (f"train/test row overlap {split['overlap']} "
+                               f"of {split.get('n_test_rows')} test rows in run {i}"),
+                    "first_step": None,
+                    "metrics": [x["final_metric"] for x in runs],
+                    "split": split}
     crashed = [i for i, r in enumerate(runs) if r["returncode"] != 0]
     if crashed:
         i = crashed[0]

@@ -93,8 +93,8 @@ def test_live_client_blocked_by_kill_switch(monkeypatch):
         c.complete("hi")
 
 
-def test_image_not_implemented_pending_docs():
-    b = Budget(live=True)
+def test_image_requires_live_flag():
+    b = Budget(live=False)
     c = OpenAICompatibleClient(base_url="http://127.0.0.1:1", model="m", budget=b)
-    with pytest.raises(NotImplementedError):
-        c.complete_with_image("prompt", image=b"bytes")
+    with pytest.raises(LiveDisabled):
+        c.complete_with_image("prompt", b"bytes")

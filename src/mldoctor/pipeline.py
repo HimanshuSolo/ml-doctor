@@ -22,12 +22,16 @@ def make_diff(original, patched):
 
 
 def run_pipeline(script, client=None, bus=None, k=5, verify_k=None, seed=0,
-                 timeout=180, out_path=None, jobs=1):
+                 timeout=180, out_path=None, jobs=1, investigate=False,
+                 vision=False, source_text=None):
     bus = bus or EventBus()
     client = client or MockClient(budget=Budget())
     mock = type(client).__name__ == "MockClient"
-    with open(script) as fh:
-        source = fh.read()
+    if source_text is not None:
+        source = source_text
+    else:
+        with open(script) as fh:
+            source = fh.read()
     bus.emit("pipeline_started", script=str(script), mock=mock)
     runs = run_baseline(script, k=k, seed=seed, timeout=timeout, jobs=jobs)
     cls = classify(runs)
@@ -46,7 +50,42 @@ def run_pipeline(script, client=None, bus=None, k=5, verify_k=None, seed=0,
     if cls["symptom"] == "error":
         bus.emit("pipeline_completed", passed=False, verdict="error (no fix attempted)")
         return summary
+    image_sent = False
+    if vision:
+        from .plots import render_loss_png_b64
+        img_b64, used = render_loss_png_b64(before)
+        if used:
+            # Probe the provider once with the tiny image; on rejection the
+            # run proceeds text-only and says so in the report.
+            try:
+                from .llm import LLMError
+                client.complete_with_image(
+                    "Inspect this loss curve. Reply with exactly OK.",
+                    __import__("base64").b64decode(img_b64))
+                image_sent = True
+            except Exception as exc:
+                bus.emit("vision_unavailable", error=str(exc)[:300])
+    if investigate:
+        from .diagnose import build_investigate_prompt, parse_investigate
+        from .experiments import run_experiment
+        results, experiments_run = [], []
+        for _ in range(3):
+            plan = parse_investigate(
+                client.complete(build_investigate_prompt(cls, results),
+                                purpose="investigate"))
+            bus.emit("hypotheses_reranked", ranked_hypotheses=plan["ranked_hypotheses"],
+                     next_experiment=plan["next_experiment"])
+            if plan["next_experiment"] == "ready_to_patch":
+                break
+            bus.emit("experiment_started", experiment=plan["next_experiment"])
+            result = run_experiment(str(script), plan["next_experiment"],
+                                    seed=seed, timeout=timeout, runs=runs)
+            results.append(result)
+            bus.emit("experiment_result", **result)
+            experiments_run.append(result["experiment"])
+        summary["experiments"] = results
     diagnosis, patch, patched = diagnose_and_patch(cls, source, client)
+    summary["vision"] = {"requested": bool(vision), "image_sent": image_sent}
     summary.update(diagnosis=diagnosis, patch=patch, diff=make_diff(source, patched))
     bus.emit("diagnosed", diagnosis=diagnosis)
     bus.emit("patch_proposed", patch=patch)
@@ -61,8 +100,9 @@ def run_pipeline(script, client=None, bus=None, k=5, verify_k=None, seed=0,
     vk = verify_k or required_runs(cls["symptom"])
     bus.emit("verification_started", k=vk, required_k=required_runs(cls["symptom"]),
              mode="seeds" if cls["symptom"] == "diverged" else "same-seed")
+    _before_metric = (cls["metrics"][0] if cls.get("metrics") else None)
     ver = verify_fix(str(out_path), cls["symptom"], k=vk, seed=seed,
-                     timeout=timeout, original_text=source,
+                     timeout=timeout, original_text=source, original_metric=_before_metric,
                      progress=lambda p: bus.emit("verify_progress", **p))
     summary["verification"] = ver
     summary["evidence"]["after"] = ver.get("evidence")

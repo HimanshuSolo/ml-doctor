@@ -5,7 +5,7 @@ install pending approval; see assumptions). No network on mock path.
 """
 import json
 
-SYMPTOMS = ("healthy", "non_reproducible", "diverged", "error")
+SYMPTOMS = ("healthy", "non_reproducible", "diverged", "error", "leakage")
 _FIELDS = ("symptom", "reason", "culprit", "fix_plan")
 
 
@@ -49,3 +49,31 @@ def build_prompt(classification, source):
 def diagnose(classification, source, client):
     return parse_diagnosis(client.complete(build_prompt(classification, source),
                                            purpose="diagnose"))
+
+
+def parse_investigate(text):
+    """Strict plan: ranked hypotheses + next experiment id (or ready_to_patch)."""
+    from .experiments import MENU
+    try:
+        obj = json.loads(extract_json(text))
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"not JSON: {exc}") from exc
+    if type(obj) is not dict or set(obj) != {"ranked_hypotheses", "next_experiment"}:
+        raise ValidationError("fields must be exactly [ranked_hypotheses, next_experiment]")
+    hyps = obj["ranked_hypotheses"]
+    if type(hyps) is not list or not hyps or any(type(h) is not str or not h.strip() for h in hyps):
+        raise ValidationError("ranked_hypotheses must be a non-empty list of strings")
+    nxt = obj["next_experiment"]
+    if nxt != "ready_to_patch" and nxt not in MENU:
+        raise ValidationError(f"next_experiment must be one of {list(MENU)} or ready_to_patch")
+    return obj
+
+
+def build_investigate_prompt(classification, results):
+    from .experiments import MENU
+    return ("Respond with ONLY a JSON object, no prose, with exactly these "
+            "fields: ranked_hypotheses (non-empty list of short strings, most "
+            "likely first), next_experiment (one of "
+            f"{list(MENU)} or ready_to_patch).\n"
+            f"symptom={classification.get('symptom')} reason={classification.get('reason')}\n"
+            f"experiment_result={json.dumps(results[-1], default=str) if results else 'none'}")

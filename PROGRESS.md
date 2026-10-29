@@ -1,38 +1,34 @@
-# MLDoctor — Progress (state as of 2026-10-29, stages 0+A done)
+# MLDoctor — Progress (state as of 2026-10-29, stages 0,A,B,C,D,E,F,G done)
 
 ## Where things stand
-- Backend pipeline DONE, tested: harness, runner, budget, mock + live LLM clients,
-  diagnose, patch, verify gate, events, pipeline, FastAPI dashboard, HTML report.
-- Fast: 78 passed (~14s). Slow: 13 passed (~139s). New: tests/test_harness_env.py (2).
-- Stage 0 DONE: child scripts get allowlisted env (harness.child_env(); secrets with
-  API_KEY/SECRET/TOKEN/PASSWORD/PRIVATE_KEY never forwarded, even via extra_env).
-  README warns uploaded/pasted scripts execute locally as the server user.
-- Stage A DONE — live path is REAL (Baseten verified): model slug in .env works,
-  no fallback probe needed. Real response: top keys choices/created/id/model/object/
-  usage; reasoning in message.reasoning_content; reasoning tokens in
-  completion_tokens_details; finish_reason length when max_tokens too small
-  (probe max_tokens=50 returned empty content — use >=4096 for live fixes).
-- Live fix on fixtures/repro.py: 2 calls, model reported meta-models/muse-spark-open,
-  diagnose correct (unseeded random.shuffle), patch REJECTED by gate (replaces shuffle
-  with randperm instead of just seeding) — gate held, 0 verify runs. Ledger at
-  /tmp/live_repro_ledger.jsonl (7821 total tokens). No gate loosening.
-- test_llm.py fake server now returns the real shape (id/object/usage/finish_reason/
-  reasoning_content) with assertions. test_live.py already covered it.
-- Real calls used: 3 of 30 (1 probe + 2 fix). Session rule: no retries on failure.
+- Backend + Next.js frontend done. Fast: 86 passed (~20s). Slow: 13 passed (~128s).
+  Web: tsc 0 errors, eslint 0 errors, vitest 17 passed, build + build:copy pass.
+- Stage B: fixed experiment menu (overfit_one_batch dropped — cannot be done
+  reliably without editing the script); diagnose loop max 3, events wired.
+- Stage C: fixtures/leakage.py (CONTROLLED); split row-hash overlap in harness;
+  classify leakage when overlap_ratio > 0.05 (natural load_digits ~2.7% ignored).
+- Stage D: --vision + dashboard toggle; one real probe timed out once (no retry);
+  live vision is text-only in practice; reports state whether an image was sent.
+- Stage E: proof bundle JSON+HTML, `recheck`, `check` (exit codes), CI sample
+  (UNTESTED in real CI), patch export (.patch + .md PR text). Never auto-push.
+- Stage F: investigation timeline, leakage view, trajectory fan 3D (random
+  projection, axes meaningless), verification cubes, loss ribbons, first-divergence
+  scrubber, proof panel + share card. All from reduce() only.
+- Stage G: live fixes repro/diverge/leakage all FAIL honestly (gates held);
+  docs/sample-reports/ has the table. Mock leakage/repro smokes: PASS except
+  live misplacement ("dedup after split" flagged; .mldoctor/patched kept).
 
 ## Key decisions (do not regress)
-- Child harness never seeds RNGs; scripts seed from MLDOCTOR_SEED. Diverge = non-finite
-  loss OR peak >10x initial, before reproducibility. Verify: 10 same-seed runs for
-  non_reproducible, 5 seeds for diverged. MockClient keyed by symptom class, text-only.
-- Git identity HimanshuSolo; agent never runs git. Stale .mldoctor/patched/*.py left
-  alone (deletion needs user approval). Three + @react-three/fiber already installed.
+- Child env allowlist (harness.child_env()); secrets never forwarded.
+- Live needs --max-tokens >=4096 (reasoning eats small budgets). No retries.
+- Leakage verify: overlap == 0; dedup must be before split; metric drop is honest.
 
-## PENDING NEXT: Stage B (investigation loop), C (leakage), D (vision), E (proof/export/CI), F (frontend 3D), G (live evidence, 18-call cap)
-- Frontend stays Next.js in web/ via reduce(); vanilla static/ fallback untouched.
-- Honesty rules: every animation from a real server event; no PASS before completion
-  event; MOCK/LIVE/DEMO badges truthful; fixtures labeled controlled.
+## Real calls (session total: 9 of 30; Stage G cap 18 not reached)
+1 probe + 2 repro + 2 diverge + 3 leakage(+investigate) + 1 vision probe (timeout).
 
-## Commands (repo root)
-- Fast: .venv/bin/python -m pytest -q | Slow: .venv/bin/python -m pytest -q -m slow
-- Live fix: .venv/bin/mldoctor fix fixtures/repro.py --live -k 2 --max-calls 4 --max-tokens 4096 --ledger /tmp/ledger.jsonl
-- Dashboard: .venv/bin/mldoctor serve --port 8765 (two-process) or static_next (one-process)
+## Frontend rework (2026-10-29, uncommitted)
+- Single slim sticky header: removed floating nav pill, merged status into `web/src/components/hud.tsx`; removed Pricing page + Diagnose/Verify/Proof stubs (dead-end routes, only `/` remains).
+- Palette: neon teal/electric blue replaced by warm paper + deep-teal accent (`--accent`), light default, `[data-theme="dark"]` flip.
+- Hero spiral: crisp SVG `FluidBlob` with scroll-linked rotate/parallax; grid background follows theme.
+- Scroll animations: section fade-up reveals (`Reveal`), staggered blocks, animated section underlines, hero word-clip reveal, button hover/tap, thicker scroll-progress hairline. Fixed hydration #418 (token check deferred to mount); removed full-screen route overlay.
+- Verified: eslint 0 errors, `tsc --noEmit` clean, vitest 17 passed, `npm run build:copy` OK; headless screenshots of top + full page reviewed. Working tree still uncommitted — commit only on explicit ask.

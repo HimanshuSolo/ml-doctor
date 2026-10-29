@@ -1,0 +1,14 @@
+# UNTESTED in real CI — sample workflow only. Adapt paths before use.
+name: MLDoctor check
+on: [pull_request, push]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: pip install torch scikit-learn pytest httpx
+      - run: mldoctor check fixtures/healthy.py --runs 3
