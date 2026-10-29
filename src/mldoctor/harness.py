@@ -108,18 +108,60 @@ def _parse_metric(stdout):
         return None
 
 
+_SECRET_SUBSTRINGS = ("API_KEY", "SECRET", "TOKEN", "PASSWORD", "PRIVATE_KEY")
+
+
+def _is_secret_key(key):
+    upper = key.upper()
+    return any(part in upper for part in _SECRET_SUBSTRINGS)
+
+
+def child_env(extra_env=None):
+    """Allowlisted environment for target-script children.
+
+    Secrets (any key containing API_KEY/SECRET/TOKEN/PASSWORD/PRIVATE_KEY,
+    including MLDOCTOR_API_KEY) are never forwarded, even via extra_env.
+    """
+    keep_exact = {
+        "PATH", "HOME", "LANG", "LC_ALL", "LC_LANG", "PYTHONIOENCODING",
+        "PYTHONHOME", "VIRTUAL_ENV", "CONDA_PREFIX",
+        "TMPDIR", "TEMP", "TMP",
+        "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH",
+        "SYSTEMROOT", "WINDIR",
+        "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+        "CUDA_VISIBLE_DEVICES",
+    }
+    keep_prefixes = ("PYTHON", "TORCH_", "CUDA_", "OMP_", "MKL_", "OPENBLAS_",
+                     "HF_", "HUGGINGFACE_")
+    env = {}
+    for key, val in os.environ.items():
+        if _is_secret_key(key):
+            continue
+        if key in keep_exact or key.startswith(keep_prefixes):
+            env[key] = val
+        elif key.startswith("MLDOCTOR_") and key not in (
+                CHILD_ENV, TARGET_ENV, OUT_ENV, SEED_ENV,
+                THREADS_ENV, DETERMINISTIC_ENV):
+            # Forward harmless MLDOCTOR_* config, never secrets (already cut).
+            env[key] = val
+    if extra_env:
+        for key, val in extra_env.items():
+            if _is_secret_key(key):
+                continue
+            env[key] = val
+    return env
+
+
 def run_script(target, telemetry_path, seed=0, timeout=120, extra_env=None):
     """Run target under wrappers. Returns dict with returncode, stdout,
     stderr, telemetry rows, and final_metric (or None). Fails once, no retry."""
-    env = dict(os.environ)
+    env = child_env(extra_env)
     env.update({
         CHILD_ENV: "1",
         TARGET_ENV: os.path.abspath(target),
         OUT_ENV: os.path.abspath(telemetry_path),
         SEED_ENV: str(seed),
     })
-    if extra_env:
-        env.update(extra_env)
     env["PYTHONPATH"] = SRC_DIR + os.pathsep + env.get("PYTHONPATH", "")
     try:
         proc = subprocess.run(

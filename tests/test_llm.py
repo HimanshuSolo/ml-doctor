@@ -32,7 +32,15 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         _Handler.seen = json.loads(self.rfile.read(length).decode())
-        body = json.dumps({"choices": [{"message": {"content": "fake-reply"}}]}).encode()
+        body = json.dumps({
+            "id": "chatcmpl-fake", "object": "chat.completion", "created": 1,
+            "model": "fake-reported",
+            "choices": [{"finish_reason": "stop",
+                         "message": {"content": "fake-reply",
+                                     "reasoning_content": "thinking"}}],
+            "usage": {"prompt_tokens": 4, "completion_tokens": 6, "total_tokens": 10,
+                      "completion_tokens_details": {"reasoning_tokens": 2}},
+        }).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -61,6 +69,11 @@ def test_live_client_against_fake_server(monkeypatch):
         assert _Handler.seen["model"] == "fake"
         assert _Handler.seen["messages"][0]["content"] == "hello"
         assert b.calls[0]["live"] is True
+        assert b.calls[0]["usage_total"] == 10
+        assert b.calls[0]["usage_reasoning"] == 2
+        assert c.last_response_info["finish_reason"] == "stop"
+        assert c.last_response_info["model_reported"] == "fake-reported"
+        assert c.last_response_info["has_reasoning_content"] is True
     finally:
         srv.shutdown()
 
