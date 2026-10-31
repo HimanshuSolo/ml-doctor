@@ -58,7 +58,7 @@ export default function SmoothScroll({ activeStep }: { activeStep: number }) {
 
   return (
     <button type="button" aria-pressed={follow} onClick={() => setFollow(!follow)}
-      className={`fixed bottom-4 right-4 z-[80] rounded-full border px-4 py-2 font-mono text-xs shadow-lg backdrop-blur ${follow ? "border-[#2f5bff] bg-[#2f5bff] text-white" : "border-line bg-panel text-dim"}`}>
+      className={`fixed bottom-4 right-4 z-[80] rounded-full border px-4 py-2 font-mono text-xs shadow-lg backdrop-blur ${follow ? "border-[#bc4a1a] bg-[#bc4a1a] text-white" : "border-line bg-panel text-dim"}`}>
       {follow ? "● FOLLOW RUN" : "○ FOLLOW RUN"}
     </button>
   );
