@@ -9,7 +9,7 @@ export default function VerdictMoment({ s }: { s: State }) {
   if (!s.verdict || dismissed === s.verdict) return null;
   const pass = s.verdict === "PASS";
   return (
-    <div className={`fixed inset-0 z-[85] grid place-items-center ${pass ? "bg-[#05070c] text-[#eef2ff]" : "bg-[#05070c] text-[#eef2ff]"}`} role="alertdialog" aria-label={`Verdict: ${s.verdict}`}>
+    <div className={`fixed inset-0 z-[85] grid place-items-center ${pass ? "bg-[#171310] text-[#f5efe6]" : "bg-[#171310] text-[#f5efe6]"}`} role="alertdialog" aria-label={`Verdict: ${s.verdict}`}>
       {pass && <div aria-hidden="true" className="verdict-ring absolute h-64 w-64 rounded-full border-4 border-[#19e3a0]" />}
       <div className={`relative text-center ${pass ? "" : "verdict-glitch"}`}>
         <p className="font-mono text-xs tracking-[0.35em] opacity-80">{s.mode ?? ""}{s.mode === "MOCK" ? " · SIMULATED" : ""} — SERVER VERDICT</p>
