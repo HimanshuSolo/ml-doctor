@@ -1,6 +1,6 @@
 import type { Diagnosis, Evidence, ExperimentResult, Patch, RunDatum, ServerEvent, ServerState } from "./events";
 export type Verdict = "PASS" | "FAIL";
-export type HistoryEntry = { script: string; verdict: string; passed: boolean; at: number };
+export type HistoryEntry = { script: string; verdict: string; passed: boolean; at: number; id?: number; mode?: string };
 export type State = {
   phase: "idle" | "running" | "done" | "failed"; mode: "MOCK" | "LIVE" | null;
   demoPacing: boolean; liveConfigured: boolean; callCap: number | null;
