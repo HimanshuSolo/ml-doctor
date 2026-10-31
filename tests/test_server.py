@@ -69,3 +69,20 @@ def test_run_repro_mock_end_to_end(client):
     assert s["summary"]["mock"] is True
     types = [e["type"] for e in s["events"]]
     assert "verification_completed" in types and types[-1] == "pipeline_completed"
+
+
+def test_history_records_completions_and_deletes(tmp_path):
+    from mldoctor import server as mod
+    app_client = TestClient(create_app(allowed_dir=str(tmp_path), token="test-token"))
+    assert app_client.get("/api/history").status_code == 401
+    assert app_client.get("/api/history", headers=H).json() == {"history": []}
+    i1 = mod.history_add(app_client.app.state.history_db, 1.0, "a.py", "PASS", True, "MOCK")
+    mod.history_add(app_client.app.state.history_db, 2.0, "b.py", "FAIL", False, "LIVE")
+    rows = app_client.get("/api/history", headers=H).json()["history"]
+    assert [r["script"] for r in rows] == ["b.py", "a.py"]  # newest first
+    assert rows[0]["mode"] == "LIVE" and rows[0]["id"] == i1 + 1
+    assert app_client.delete("/api/history/9999", headers=H).status_code == 404
+    assert app_client.delete(f"/api/history/{i1}", headers=H).status_code == 200
+    assert [r["script"] for r in app_client.get("/api/history", headers=H).json()["history"]] == ["b.py"]
+    assert app_client.delete("/api/history", headers=H).json() == {"deleted": 1}
+    assert app_client.get("/api/history", headers=H).json() == {"history": []}
