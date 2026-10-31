@@ -9,6 +9,7 @@ import json
 import os
 import queue
 import secrets
+import sqlite3
 import threading
 import time
 
@@ -23,6 +24,72 @@ DEMO_PACING_DELAY = 0.35
 def effective_pacing(demo_pacing, live):
     """Demo pacing is MOCK-only; never active for a live run."""
     return bool(demo_pacing) and not bool(live)
+
+
+HISTORY_SCHEMA = ("CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                  " ts REAL NOT NULL, script TEXT NOT NULL, verdict TEXT NOT NULL,"
+                  " passed INTEGER NOT NULL, mode TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '')")
+
+
+def history_db_path(allowed):
+    d = os.path.join(allowed, ".mldoctor")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "history.db")
+
+
+def history_init(db_path):
+    con = sqlite3.connect(db_path)
+    try:
+        con.execute(HISTORY_SCHEMA)
+        con.commit()
+    finally:
+        con.close()
+    return db_path
+
+
+def history_add(db_path, ts, script, verdict, passed, mode, reason=""):
+    con = sqlite3.connect(db_path)
+    try:
+        cur = con.execute("INSERT INTO runs (ts, script, verdict, passed, mode, reason)"
+                          " VALUES (?, ?, ?, ?, ?, ?)",
+                          (ts, script, verdict, 1 if passed else 0, mode, reason))
+        con.commit()
+        return cur.lastrowid
+    finally:
+        con.close()
+
+
+def history_list(db_path, limit=100):
+    con = sqlite3.connect(db_path)
+    try:
+        con.row_factory = sqlite3.Row
+        rows = con.execute("SELECT id, ts, script, verdict, passed, mode, reason"
+                           " FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [{"id": r["id"], "at": r["ts"], "script": r["script"],
+                 "verdict": r["verdict"], "passed": bool(r["passed"]),
+                 "mode": r["mode"], "reason": r["reason"]} for r in rows]
+    finally:
+        con.close()
+
+
+def history_delete(db_path, row_id):
+    con = sqlite3.connect(db_path)
+    try:
+        cur = con.execute("DELETE FROM runs WHERE id = ?", (row_id,))
+        con.commit()
+        return cur.rowcount
+    finally:
+        con.close()
+
+
+def history_clear(db_path):
+    con = sqlite3.connect(db_path)
+    try:
+        cur = con.execute("DELETE FROM runs")
+        con.commit()
+        return cur.rowcount
+    finally:
+        con.close()
 
 
 def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
@@ -53,11 +120,26 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
         if tok != app.state.token:
             raise HTTPException(401, "bad or missing token")
 
+    app.state.history_db = history_init(history_db_path(allowed))
+    app.state.last_script = None
+    app.state.last_mode = None
+
     def listener(ev):
         if app.state.demo_pacing:
             time.sleep(DEMO_PACING_DELAY)
         app.state.events.append(ev)
         app.state.bus_queue.put(ev)
+        if ev.get("type") == "pipeline_started":
+            app.state.last_script = ev.get("script")
+            app.state.last_mode = "MOCK" if ev.get("mock") else "LIVE"
+        elif ev.get("type") == "pipeline_completed":
+            try:
+                history_add(app.state.history_db, ev.get("ts", time.time()),
+                              app.state.last_script or "?",
+                              ev.get("verdict", "?"), bool(ev.get("passed")),
+                              app.state.last_mode or "?")
+            except OSError:
+                pass
 
     def _next_index():
         p = os.path.join(STATIC_NEXT, "index.html")
@@ -166,6 +248,23 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
                                         app.state.summary)
         return Response(proof_mod.bundle_html(bundle), media_type="text/html",
                         headers={"Content-Disposition": "attachment; filename=mldoctor-proof.html"})
+
+    @app.get("/api/history")
+    def history(request: Request):
+        check_token(request)
+        return {"history": history_list(app.state.history_db)}
+
+    @app.delete("/api/history")
+    def history_clear_all(request: Request):
+        check_token(request)
+        return {"deleted": history_clear(app.state.history_db)}
+
+    @app.delete("/api/history/{row_id}")
+    def history_delete_one(request: Request, row_id: int):
+        check_token(request)
+        if not history_delete(app.state.history_db, row_id):
+            raise HTTPException(404, "no such run")
+        return {"deleted": row_id}
 
     @app.post("/api/run")
     async def run(request: Request):
