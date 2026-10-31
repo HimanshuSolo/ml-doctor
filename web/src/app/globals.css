@@ -1,13 +1,13 @@
 @import "tailwindcss";
-/* MLDoctor — Clinical lab meets deep-space mission control.
-   Dark: bg #05070C / surface #0B1020 / hairline #1B2440 / text #EEF2FF / muted #8B97B8.
-   Light: bg #F5F7FB / text #0A0F1F. Accent cobalt #2F5BFF, glow #6F8CFF.
-   Green #19E3A0 = verified pass only. Red #FF4D5E = failure. Amber #FFB020 = warning. */
+/* MLDoctor palette — warm paper & espresso, ONE ember accent. No white/blue/black.
+   Dark:  bg #171310, surface #1F1A16, raised #2A231D, hairline #3A322A, text #F5EFE6, muted #B0A696
+   Light: bg #F7F3EC, surface #FFFDF7, raised #EFE8DB, hairline #DED4C2, text #211D19, muted #6E6459
+   Accent ember #BC4A1A (fills), glow #FF8A5F (dark-mode text/glow). Status colours stay reserved. */
 @theme {
   --color-abyss: var(--abyss); --color-panel: var(--panel); --color-panel2: var(--panel2);
   --color-line: var(--line); --color-tealx: var(--accent); --color-bluex: var(--accent);
-  --color-skyx: var(--glow); --color-brand: var(--accent); --color-inkdeep: #05070c;
-  --color-amberx: #ffb020; --color-redx: #ff4d5e; --color-greenx: #19e3a0;
+  --color-skyx: var(--glow); --color-brand: var(--accent); --color-inkdeep: #171310;
+  --color-amberx: #ffc24b; --color-redx: #ff5252; --color-greenx: #2ee6a8;
   --color-ink: var(--inkc); --color-dim: var(--dimc);
   --font-sans: "Space Grotesk", ui-sans-system, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-system, system-ui, sans-serif;
@@ -15,35 +15,40 @@
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
-:root {
-  --abyss: #05070c; --panel: #0b1020; --panel2: #0b1020; --line: #1b2440;
-  --inkc: #eef2ff; --dimc: #8b97b8;
-  --accent: #2f5bff; --glow: #6f8cff; --accent-hover: #4d74ff;
+:root, html[data-mode="dark"] {
+  --abyss: #171310; --panel: #1f1a16; --panel2: #2a231d; --line: #3a322a;
+  --inkc: #f5efe6; --dimc: #b0a696; --accent: #fd7543; --glow: #ff8a5f;
   --header-h: 3.25rem; color-scheme: dark;
 }
-.chapter-dark { --accent:#6f8cff; --abyss:#05070c; --panel:#0b1020; --panel2:#0b1020; --line:#1b2440; --inkc:#eef2ff; --dimc:#8b97b8; --accent:#2f5bff; background:#05070c; color:#eef2ff; color-scheme: dark; }
-.chapter-light { --color-redx:#be1a12; --color-greenx:#067647; --color-amberx:#92400e; --abyss:#f5f7fb; --panel:#f5f7fb; --panel2:#e8edf7; --line:#c9d4ec; --inkc:#0a0f1f; --dimc:#3d4a6b; --accent:#2f5bff; background:#f5f7fb; color:#0a0f1f; color-scheme: light; }
-/* Header + ticker follow the chapter currently under them (set by scroll spy on body). */
-body[data-chapter="dark"] .themed-chrome { --accent:#6f8cff; --panel:#0b1020; --line:#1b2440; --inkc:#eef2ff; --dimc:#8b97b8; background:#05070c; color:#eef2ff; }
-body[data-chapter="light"] .themed-chrome { --accent:#2f5bff; --color-redx:#be1a12; --color-greenx:#067647; --color-amberx:#92400e; --panel:#f5f7fb; --line:#c9d4ec; --inkc:#0a0f1f; --dimc:#3d4a6b; background:#f5f7fb; color:#0a0f1f; }
+html[data-mode="light"] {
+  --abyss: #f7f3ec; --panel: #fffdf7; --panel2: #efe8db; --line: #ded4c2;
+  --inkc: #211d19; --dimc: #6e6459; --accent: #bc4a1a; --glow: #bc4a1a;
+  --color-redx: #c81e1e; --color-greenx: #087443; --color-amberx: #9a6b00;
+  color-scheme: light;
+}
+/* Chapters alternate surface depth within the active mode only.
+   They never force a theme; the header toggle owns light/dark. */
+.chapter-dark { background: var(--abyss); color: var(--inkc); }
+.chapter-light { background: var(--panel2); color: var(--inkc); }
+.themed-chrome { background: var(--panel); color: var(--inkc); }
 html { scroll-behavior: smooth; }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 section { scroll-margin-top: calc(var(--header-h) + 1rem); }
-body { background: #05070c; color: #eef2ff; font-family: var(--font-sans); overflow-x: hidden; }
+body { background: var(--abyss); color: var(--inkc); font-family: var(--font-sans); overflow-x: hidden; }
 .font-serif-accent { font-family: var(--font-serif); font-style: italic; font-weight: 400; }
 .display-huge { font-size: clamp(3rem, 9vw, 8.5rem); line-height: .92; letter-spacing: -.04em; font-weight: 700; }
 .label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dimc); font-weight: 600; font-family: var(--font-mono); }
-::selection { background: #2f5bff; color: #fff; }
+::selection { background: #bc4a1a; color: #fff; }
 :focus-visible { outline: 2px solid var(--glow); outline-offset: 3px; border-radius: 2px; }
 h1, h2 { text-wrap: balance; }
-/* decorative: film grain overlay */
-.grain::after { content:""; position: fixed; inset: -50%; z-index: 90; pointer-events: none; opacity: .05;
+/* decorative: film grain overlay (very subtle, never over content contrast) */
+.grain::after { content:""; position: fixed; inset: -50%; z-index: 90; pointer-events: none; opacity: .025;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
   animation: grain-shift 0.9s steps(4) infinite; }
 @keyframes grain-shift { 0%{transform:translate(0,0)} 25%{transform:translate(-2%,1%)} 50%{transform:translate(1%,-2%)} 75%{transform:translate(-1%,2%)} 100%{transform:translate(0,0)} }
-/* decorative: faint animated grid */
-.bg-grid { background-image: linear-gradient(#1b2440 1px, transparent 1px), linear-gradient(90deg, #1b2440 1px, transparent 1px); background-size: 44px 44px; animation: grid-drift 24s linear infinite; }
+/* decorative: faint grid, mode-aware hairline */
+.bg-grid { background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 44px 44px; animation: grid-drift 24s linear infinite; }
 @keyframes grid-drift { to { background-position: 44px 44px, 44px 44px; } }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .ticker-track { animation: ticker-scroll 30s linear infinite; }
@@ -54,7 +59,7 @@ h1, h2 { text-wrap: balance; }
 .verdict-glitch { animation: glitch-x .45s steps(2) 3; }
 .spot-card { position: relative; }
 .spot-card::before { content:""; position:absolute; inset:0; border-radius: inherit; pointer-events:none; opacity:0; transition: opacity .3s;
-  background: radial-gradient(320px circle at var(--mx,50%) var(--my,50%), color-mix(in srgb, var(--accent) 14%, transparent), transparent 65%); }
+  background: radial-gradient(320px circle at var(--mx,50%) var(--my,50%), color-mix(in srgb, var(--accent) 10%, transparent), transparent 65%); }
 .spot-card:hover::before { opacity: 1; }
 .magnetic { transition: transform .25s var(--ease-out); will-change: transform; }
 @media (hover:hover) and (pointer:fine) { .has-cursor, .has-cursor a, .has-cursor button, .has-cursor input, .has-cursor textarea, .has-cursor label { cursor: none; } }
