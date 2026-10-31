@@ -30,3 +30,18 @@ describe("buildSummary", () => {
     expect(t).not.toContain("verdict: PASS");
   });
 });
+
+describe("explainPatch + share codec", () => {
+  it("returns null before diagnosis, narrates after", async () => {
+    const { explainPatch, encodeShare, decodeShare } = await import("./helpers");
+    const base = { symptom: "non_reproducible", diagnosis: { culprit: "unseeded shuffle", fix_plan: "seed the RNG", reason: "epoch order differs" },
+      patchedPath: "uploads/mine.py", violations: [], verdict: null, verdictReason: null, firstStep: 3,
+      nDone: 5, nTotal: 5, metricBefore: null, metricAfter: null, leakageBefore: null, leakageAfter: null };
+    expect(explainPatch({ ...base, diagnosis: null })).toBeNull();
+    const story = explainPatch(base as never);
+    expect(story).toContain("unseeded shuffle");
+    expect(story).toContain("step 3");
+    expect(decodeShare(encodeShare("# hello"))).toBe("# hello");
+    expect(decodeShare("!!!not-valid!!!")).toBeNull();
+  });
+});
