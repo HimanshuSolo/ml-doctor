@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import type { State } from "@/lib/reducer";
-import { buildSummary } from "@/lib/helpers";
+import { buildSummary, encodeShare } from "@/lib/helpers";
+import { apiUrl } from "@/lib/api";
 
 // "Proof, not prompts": the checklist a plain chatbot can't give you. Every
 // row ticks ONLY from server-reported state — pending rows stay visibly
@@ -21,10 +22,10 @@ function drawShareCard(s: State): HTMLCanvasElement {
   c.width = 720; c.height = 400;
   const g = c.getContext("2d");
   if (!g) return c;
-  g.fillStyle = "#05070c"; g.fillRect(0, 0, 720, 400);
-  g.fillStyle = "#eef2ff"; g.font = "bold 26px system-ui, sans-serif";
+  g.fillStyle = "#171310"; g.fillRect(0, 0, 720, 400);
+  g.fillStyle = "#f5efe6"; g.font = "bold 26px system-ui, sans-serif";
   g.fillText("MLDoctor proof", 28, 52);
-  g.font = "15px ui-monospace, monospace"; g.fillStyle = "#8b97b8";
+  g.font = "15px ui-monospace, monospace"; g.fillStyle = "#b0a696";
   const stamp = `${s.mode ?? "—"}${s.mode === "MOCK" ? " (simulated)" : ""}`;
   g.fillText(`mode: ${stamp}`, 28, 92);
   g.fillText(`script: ${s.script ?? "—"}`, 28, 118);
@@ -32,20 +33,20 @@ function drawShareCard(s: State): HTMLCanvasElement {
   g.fillStyle = s.verdict === "PASS" ? "#19e3a0" : "#ff4d5e";
   g.font = "bold 34px system-ui, sans-serif";
   g.fillText(s.verdict ?? "NO VERDICT YET", 28, 205);
-  g.fillStyle = "#8b97b8"; g.font = "14px ui-monospace, monospace";
+  g.fillStyle = "#b0a696"; g.font = "14px ui-monospace, monospace";
   g.fillText(`verification: ${s.nDone}/${s.nTotal} runs, ${s.nFailed} failed`, 28, 245);
   if (s.verdictReason) g.fillText(s.verdictReason.slice(0, 74), 28, 270);
   g.fillText("Generated client-side from real run state only.", 28, 372);
   return c;
 }
 
-export default function ProofPanel({ s }: { s: State }) {
+export default function ProofPanel({ s, getToken }: { s: State; getToken: () => string }) {
   const [copied, setCopied] = useState(false);
   const [recheckCopied, setRecheckCopied] = useState(false);
   const [cardUrl, setCardUrl] = useState<string | null>(null);
   const rows = [
     { ok: s.symptom !== null, title: "Reproduced from your code", detail: s.symptom ?? "waiting for baseline_completed" },
-    { ok: s.diagnosis !== null, title: "Root cause isolated", detail: s.diagnosis ? `${s.diagnosis.culprit} — ${s.diagnosis.reason}` : "waiting for diagnosis" },
+    { ok: s.diagnosis !== null, title: "Root cause isolated", detail: s.diagnosis ? `${s.diagnosis.culprit} — ${s.diagnosis.reason}${s.firstStep !== null ? ` · first bad step ${s.firstStep} (telemetry)` : ""}${s.leakageBefore !== null ? ` · overlap ${s.leakageBefore} rows (telemetry)` : ""}` : "waiting for diagnosis" },
     { ok: s.diff !== null, title: "Minimal patch proposed", detail: s.patchedPath ?? "waiting for patch_applied" },
     { ok: s.patch !== null && s.violations.length === 0, title: "Anti-masking gate passed", detail: s.patch ? (s.violations.length === 0 ? "patch fixes the cause, doesn't hide it" : s.violations.join("; ")) : "checked at patch time" },
     { ok: s.nTotal > 0 && s.nDone >= s.nTotal, title: "Verified across runs, not once", detail: s.nTotal > 0 ? `${s.nDone}/${s.nTotal} runs reported` : "waiting for verification_started" },
@@ -70,11 +71,20 @@ export default function ProofPanel({ s }: { s: State }) {
         <button type="button" onClick={copy} disabled={s.phase === "idle"}
           className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
           {copied ? "✓ Copied summary" : "Copy Markdown summary"}</button>
-        <button type="button" disabled={s.phase === "idle"} onClick={() => {
+        <button type="button" disabled={s.phase === "idle"} onClick={async () => {
+          const r = await fetch(apiUrl("/api/proof.json"), { headers: { "X-MLDoctor-Token": getToken() } });
+          if (!r.ok) return;
+          const url = URL.createObjectURL(await r.blob());
           const a = document.createElement("a");
-          a.href = "/api/proof.json"; a.download = "mldoctor-proof.json"; a.click();
+          a.href = url; a.download = "mldoctor-proof.json"; a.click(); URL.revokeObjectURL(url);
         }} className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
           Download proof bundle (.json)</button>
+        <button type="button" disabled={s.phase === "idle"} onClick={async () => {
+          const link = `${window.location.origin}${window.location.pathname}#r=${encodeShare(buildSummary(s))}`;
+          try { await navigator.clipboard.writeText(link); } catch { /* clipboard unavailable */ }
+          setRecheckCopied(true); setTimeout(() => setRecheckCopied(false), 2000);
+        }} className="rounded border border-line px-3 py-1.5 font-mono text-xs text-dim hover:text-tealx disabled:opacity-50">
+          {recheckCopied ? "✓ Link copied" : "Copy share link"}</button>
         <button type="button" disabled={s.phase === "idle"} onClick={async () => {
           const cmd = "mldoctor recheck mldoctor-proof.json";
           try { await navigator.clipboard.writeText(cmd); } catch { /* clipboard unavailable */ }
