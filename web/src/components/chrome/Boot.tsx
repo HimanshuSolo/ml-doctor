@@ -16,9 +16,9 @@ export default function Boot() {
   return (
     <div className="fixed inset-0 z-[95] grid place-items-center bg-black text-white" role="presentation">
       <div className="text-center">
-        <p className="font-mono text-xs tracking-[0.3em] text-[#6f8cff]">MLDOCTOR</p>
+        <p className="font-mono text-xs tracking-[0.3em] text-[#ff8a5f]">MLDOCTOR</p>
         <p className="display-huge mt-2">Prove it.</p>
-        <div className="mx-auto mt-6 h-[3px] w-56 origin-left bg-[#2f5bff]" style={{ animation: "boot-bar 1.1s cubic-bezier(0.22,1,0.36,1) forwards" }} />
+        <div className="mx-auto mt-6 h-[3px] w-56 origin-left bg-[#bc4a1a]" style={{ animation: "boot-bar 1.1s cubic-bezier(0.22,1,0.36,1) forwards" }} />
         <button type="button" className="mt-6 font-mono text-xs text-white/60 underline underline-offset-4 hover:text-white"
           onClick={() => { setShow(false); try { sessionStorage.setItem("mldoctor-booted", "1"); } catch { /* ignore */ } }}>Skip intro</button>
       </div>
