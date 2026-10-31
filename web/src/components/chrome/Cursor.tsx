@@ -31,7 +31,7 @@ export default function Cursor() {
     return () => { window.removeEventListener("mousemove", move); cancelAnimationFrame(raf); document.documentElement.classList.remove("has-cursor"); };
   }, []);
   return (<>
-    <div ref={ring} aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[100] hidden h-7 w-7 rounded-full border border-[#2f5bff] opacity-70 md:block" />
-    <div ref={dot} aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[100] hidden h-[6px] w-[6px] rounded-full bg-[#2f5bff] md:block" />
+    <div ref={ring} aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[100] hidden h-7 w-7 rounded-full border border-[#bc4a1a] opacity-70 md:block" />
+    <div ref={dot} aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[100] hidden h-[6px] w-[6px] rounded-full bg-[#bc4a1a] md:block" />
   </>);
 }
