@@ -108,16 +108,24 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
         body = await request.json()
         name = str(body.get("name", ""))
         content = body.get("content", "")
-        if (not name.endswith(".py") or "/" in name or "\\" in name
-                or name in (".", "..") or name.startswith(".")):
-            raise HTTPException(400, "name must be a plain filename ending in .py")
+        parts = [seg for seg in name.replace("\\", "/").split("/") if seg not in ("", ".")]
+        def _ok_seg(seg, allow_ext):
+            core = seg[:-3] if allow_ext and seg.endswith(".py") else seg
+            if allow_ext != seg.endswith(".py"):
+                return False
+            return bool(core) and core[0].isalpha() and all(
+                c.isalnum() or c in "_- " for c in core)
+        if (not parts or ".." in parts
+                or not _ok_seg(parts[-1], True)
+                or not all(_ok_seg(seg, False) and "." not in seg for seg in parts[:-1])):
+            raise HTTPException(400, "name must be a .py path of plain filename segments")
         if not isinstance(content, str) or not content.strip():
             raise HTTPException(400, "content must be non-empty text")
         if len(content) > 200_000:
             raise HTTPException(400, "content too large (max 200k characters)")
         updir = os.path.join(allowed, "uploads")
-        os.makedirs(updir, exist_ok=True)
-        dest = os.path.realpath(os.path.join(updir, name))
+        dest = os.path.realpath(os.path.join(updir, *parts))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
         if not dest.startswith(updir + os.sep):
             raise HTTPException(400, "invalid filename")
         with open(dest, "w", encoding="utf-8") as f:
@@ -229,8 +237,11 @@ def create_app(allowed_dir=None, token=None, live_configured=None, call_cap=8,
 
 
 def serve(host="127.0.0.1", port=8765, allowed_dir=None):
-    if host != "127.0.0.1":
-        raise SystemExit("serve binds 127.0.0.1 only")
+    # Non-local bind is an explicit opt-in (used by the Docker image, where the
+    # container network is the boundary). The per-launch token still gates /api/*.
+    if host != "127.0.0.1" and os.environ.get("MLDOCTOR_ALLOW_NONLOCAL") != "1":
+        raise SystemExit("serve binds 127.0.0.1 only "
+                         "(set MLDOCTOR_ALLOW_NONLOCAL=1 to override, e.g. in Docker)")
     import uvicorn
     app = create_app(allowed_dir=allowed_dir)
     url = f"http://127.0.0.1:{port}/?token={app.state.token}"
