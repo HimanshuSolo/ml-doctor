@@ -50,15 +50,19 @@ def apply_patch(source_text, patch):
     return out
 
 
-def propose_patch(diagnosis, source, client):
+def propose_patch(diagnosis, source, client, hot_windows=None):
+    # The patch model sees the merge-flagged windows (or the head of the
+    # file): exact `old` snippets must come from visible text.
+    visible = "\n---\n".join(text for _, _, text in (hot_windows or [])) or source
     prompt = ("Respond with ONLY a JSON object, no prose, with exactly these "
               "fields: path, edits (a list of {old, new} exact substrings of "
-              "the source; each old must appear exactly once), rationale.\n"
-              f"symptom={diagnosis['symptom']} plan={diagnosis['fix_plan']}\nsource:\n{source[:4000]}")
+              "the SHOWN source; each old must appear exactly once), rationale.\n"
+              f"symptom={diagnosis['symptom']} plan={diagnosis['fix_plan']}\nsource:\n{visible[:12000]}")
     return parse_patch(client.complete(prompt, purpose="patch"))
 
 
 def diagnose_and_patch(classification, source, client):
-    diagnosis = diagnose(classification, source, client)
-    patch = propose_patch(diagnosis, source, client)
+    from .diagnose import diagnose_large
+    diagnosis, hot_windows = diagnose_large(classification, source, client)
+    patch = propose_patch(diagnosis, source, client, hot_windows=hot_windows)
     return diagnosis, patch, apply_patch(source, patch)
