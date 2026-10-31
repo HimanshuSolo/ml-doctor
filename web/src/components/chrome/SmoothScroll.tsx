@@ -9,6 +9,17 @@ export default function SmoothScroll({ activeStep }: { activeStep: number }) {
   const lenisRef = useRef<{ scrollTo: (t: string, o?: object) => void; destroy: () => void } | null>(null);
   useEffect(()=>{ followRef.current = follow; },[follow]);
 
+  useEffect(() => { // scroll spy: chrome takes the theme of the chapter under the header
+    const sections = document.querySelectorAll<HTMLElement>("[data-chapter-theme]");
+    if (!sections.length) return;
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) document.body.dataset.chapter = e.target.getAttribute("data-chapter-theme") ?? "dark";
+    }, { rootMargin: "-70px 0px -55% 0px" });
+    sections.forEach((s) => io.observe(s));
+    document.body.dataset.chapter = "dark";
+    return () => io.disconnect();
+  }, []);
+
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let dead = false;
@@ -47,7 +58,7 @@ export default function SmoothScroll({ activeStep }: { activeStep: number }) {
 
   return (
     <button type="button" aria-pressed={follow} onClick={() => setFollow(!follow)}
-      className={`fixed bottom-4 right-4 z-[80] rounded-full border px-4 py-2 font-mono text-xs shadow-lg backdrop-blur ${follow ? "border-[#1a4dff] bg-[#1a4dff] text-white" : "border-line bg-panel text-dim"}`}>
+      className={`fixed bottom-4 right-4 z-[80] rounded-full border px-4 py-2 font-mono text-xs shadow-lg backdrop-blur ${follow ? "border-[#2f5bff] bg-[#2f5bff] text-white" : "border-line bg-panel text-dim"}`}>
       {follow ? "● FOLLOW RUN" : "○ FOLLOW RUN"}
     </button>
   );

@@ -36,7 +36,7 @@ export default function FluidBlob() {
         <g className={reduce ? undefined : "spiral-spin"}>
           <path d={spiralPath(170, 170, 3.4, 150)} fill="none" stroke="var(--accent)" strokeWidth="2.25" strokeLinecap="round" opacity="0.85" />
           <path d={spiralPath(170, 170, 3.4, 150)} fill="none" stroke="var(--accent2)" strokeWidth="7" strokeLinecap="round" opacity="0.10" />
-          {DOTS.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={Math.max(d.r, 1.6)} fill={i % 3 === 2 ? "var(--amberx, #b45309)" : "var(--accent)"} opacity={0.95 - i * 0.07} />)}
+          {DOTS.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={Math.max(d.r, 1.6)} fill={i % 3 === 2 ? "var(--amberx, #ffb020)" : "var(--accent)"} opacity={0.95 - i * 0.07} />)}
           <circle cx="170" cy="170" r="5" fill="var(--accent)" />
         </g>
       </svg>

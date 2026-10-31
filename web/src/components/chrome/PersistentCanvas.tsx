@@ -24,6 +24,7 @@ export default function PersistentCanvas({ running }: { running: boolean }) {
         if (dead || reduced) return;
         const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.setClearColor(0x05070c, 1);
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
         camera.position.set(0, 2.2, 9);
@@ -48,7 +49,7 @@ export default function PersistentCanvas({ running }: { running: boolean }) {
             gl_Position=projectionMatrix*mv; }`,
           fragmentShader: `varying float vA; void main(){ vec2 c=gl_PointCoord-0.5; float d=length(c);
             if(d>0.5) discard; float a=smoothstep(0.5,0.0,d)*vA;
-            gl_FragColor=vec4(vec3(0.10,0.30,1.0), a*0.85); }`,
+            gl_FragColor=vec4(vec3(0.435,0.549,1.0), a*0.9); }`,
         });
         const points = new THREE.Points(pgeo, pmat);
         scene.add(points);
@@ -60,7 +61,7 @@ export default function PersistentCanvas({ running }: { running: boolean }) {
             void main(){ vec3 p=position;
             float h = exp(-pow(p.x*0.55,2.0))*1.4 + sin(p.x*1.6+uTime*0.4)*0.18*cos(p.y*1.4);
             p.z += h*uMorph; vH=h; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0); }`,
-          fragmentShader: `varying float vH; void main(){ vec3 c=mix(vec3(0.05,0.12,0.6), vec3(0.35,0.55,1.0), clamp(vH,0.0,1.4));
+          fragmentShader: `varying float vH; void main(){ vec3 c=mix(vec3(0.04,0.06,0.13), vec3(0.435,0.549,1.0), clamp(vH,0.0,1.4));
             gl_FragColor=vec4(c, 0.55); }`,
         });
         const surf = new THREE.Mesh(new THREE.PlaneGeometry(11, 7, 56, 36), surfMat);
@@ -118,7 +119,7 @@ export default function PersistentCanvas({ running }: { running: boolean }) {
     <>
       {/* decorative 2D fallback (also shows while WebGL loads / when unavailable) */}
       <div aria-hidden="true" className="bg-grid pointer-events-none fixed inset-0 -z-20 opacity-40" />
-      <canvas ref={ref} aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 h-full w-full opacity-70" />
+      <canvas ref={ref} aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 h-full w-full" />
     </>
   );
 }

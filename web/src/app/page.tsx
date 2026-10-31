@@ -184,7 +184,7 @@ export default function Page() {
         )}
         {conn === "error" && !s.error && <div role="alert" className="rounded border border-amberx bg-amberx/10 p-3 text-sm text-amberx">Event stream disconnected. Data shown is the last server-reported state.</div>}
 
-        <motion.section {...section} aria-labelledby="h-hero" className="relative -mx-4 space-y-5 overflow-hidden px-4 pb-8 pt-8">
+        <motion.section {...section} aria-labelledby="h-hero" data-chapter-theme="dark" className="chapter-dark relative -mx-4 space-y-5 overflow-hidden px-4 pb-8 pt-8">
           <div className="relative">
           <p className="label">MLDoctor · reproducible-training debugger</p>
           <h1 id="h-hero" className="display-huge max-w-5xl">
@@ -216,7 +216,7 @@ export default function Page() {
               <label><input type="checkbox" checked={investigate} onChange={(e) => setInvestigate(e.target.checked)} /> Investigate (experiment menu, max 3)</label>
               <label><input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} /> Vision (loss-curve image, opt-in)</label>
             </div>
-            <motion.button whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} type="submit" disabled={s.phase === "running"} className="magnetic rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_36px_rgba(26,77,255,0.45)] transition-opacity duration-150 hover:opacity-90 disabled:opacity-50" style={{ background: "var(--accent)", color: "#fff" }}>{s.phase === "running" ? "Running…" : "Run pipeline"}</motion.button>
+            <motion.button whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} type="submit" disabled={s.phase === "running"} className="magnetic rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_36px_rgba(47,91,255,0.45)] transition-opacity duration-150 hover:opacity-90 disabled:opacity-50" style={{ background: "#2F5BFF", color: "#fff" }}>{s.phase === "running" ? "Running…" : "Run pipeline"}</motion.button>
             <div className="flex flex-col gap-1">
               <button type="button" onClick={playDemo} disabled={s.phase === "running"} className="rounded-md border border-tealx px-6 py-2 text-sm font-semibold text-tealx transition-colors duration-150 hover:bg-tealx/10 disabled:opacity-50">
                 {demoQueue.length > 0 ? `Playing demo… ${DEMO_SCRIPTS.length - demoQueue.length}/${DEMO_SCRIPTS.length}` : "▶ Play full demo (repro → diverge → healthy)"}</button>
@@ -228,13 +228,13 @@ export default function Page() {
           <Reveal delay={0.05}><Rail s={s} /></Reveal>
           <Reveal delay={0.12}><EventLog s={s} /></Reveal>
         </motion.section>
-        <section id="chapter-pipeline" aria-labelledby="h-pipe" className="chapter-dark -mx-4 rounded-3xl px-4 py-10" data-reveal>
+        <section id="chapter-pipeline" aria-labelledby="h-pipe" data-chapter-theme="dark" className="chapter-dark -mx-4 rounded-3xl px-4 py-10" data-reveal>
           <p className="label">02 · The Pipeline</p>
-          <h2 id="h-pipe" className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Five stations. <span className="font-serif-accent text-[#7d9bff]">One truth.</span></h2>
+          <h2 id="h-pipe" className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Five stations. <span className="font-serif-accent text-[#6f8cff]">One truth.</span></h2>
           <PipelineTube s={s} />
         </section>
 
-        <motion.section {...section} id="chapter-repro" aria-labelledby="h-repro" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
+        <motion.section {...section} id="chapter-repro" aria-labelledby="h-repro" data-chapter-theme="light" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
           {heading("h-repro", "Reproduce")}
           <div className="flex gap-2" role="group" aria-label="Evidence toggle">
             {(["before", "after"] as const).map((v) => <button key={v} type="button" aria-pressed={beforeAfter === v} onClick={() => setBeforeAfter(v)} className={`rounded border px-3 py-1 text-sm ${beforeAfter === v ? "border-bluex text-bluex" : "border-line text-dim"}`}>{v === "before" ? "Before patch" : "After patch"}</button>)}
@@ -247,7 +247,7 @@ export default function Page() {
           <Reveal delay={0.1}><TrajectoryGate evidence={evidence} /></Reveal>
         </motion.section>
 
-        <motion.section {...section} id="chapter-investigate" aria-labelledby="h-inv" className="chapter-dark -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
+        <motion.section {...section} id="chapter-investigate" aria-labelledby="h-inv" data-chapter-theme="dark" className="chapter-dark -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
           {heading("h-inv", "Investigate")}
           <Reveal><InvestigationPanel s={s} /></Reveal>
           <Reveal delay={0.08}><ExperimentGraph s={s} /></Reveal>
@@ -265,13 +265,13 @@ export default function Page() {
           )}
         </motion.section>
 
-        <motion.section {...section} id="chapter-patch" aria-labelledby="h-patch" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
+        <motion.section {...section} id="chapter-patch" aria-labelledby="h-patch" data-chapter-theme="light" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
           {heading("h-patch", "Patch")}
           {s.patchedPath && <p className="font-mono text-xs text-dim">Patched file: {s.patchedPath}</p>}
           <Reveal><PatchScanner s={s} /></Reveal>
         </motion.section>
 
-        <motion.section {...section} id="chapter-verify" aria-labelledby="h-verify" className="chapter-dark -mx-4 space-y-4 rounded-3xl px-4 py-8" data-reveal>
+        <motion.section {...section} id="chapter-verify" aria-labelledby="h-verify" data-chapter-theme="dark" className="chapter-dark -mx-4 space-y-4 rounded-3xl px-4 py-8" data-reveal>
           {heading("h-verify", "Verify")}
           <Reveal><Odometer value={s.nDone} total={s.nTotal} /></Reveal>
           <Reveal delay={0.08}><RunGrid nDone={s.nDone} nTotal={s.nTotal} nFailed={s.nFailed} runs={s.runs} verdict={s.verdict} /></Reveal>
@@ -292,7 +292,7 @@ export default function Page() {
           <Reveal><ProofPanel s={s} /></Reveal>
         </motion.section>
 
-        <motion.section {...section} id="chapter-proof" aria-labelledby="h-report" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
+        <motion.section {...section} id="chapter-proof" aria-labelledby="h-report" data-chapter-theme="light" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
           {heading("h-report", "Report")}
           {s.phase === "done" ? <button type="button" className="rounded-md px-4 py-2 font-semibold transition-opacity hover:opacity-90" style={{ background: "var(--accent)", color: "var(--panel)" }} onClick={async () => { const r = await fetch(apiUrl("/api/report"), { headers: { "X-MLDoctor-Token": tokenRef.current } }); if (!r.ok) return; const url = URL.createObjectURL(await r.blob()); const a = document.createElement("a"); a.href = url; a.download = "mldoctor-report.html"; a.click(); URL.revokeObjectURL(url); }}>Download HTML report</button>
             : <p className="text-dim text-sm">Report download appears after a run finishes.</p>}
@@ -300,8 +300,8 @@ export default function Page() {
           {s.history.length === 0 ? <p className="text-dim text-sm">No completed runs yet.</p>
             : <ul className="space-y-1 font-mono text-sm">{s.history.map((h, i) => <li key={i} className="rounded border border-line bg-panel px-3 py-2">{new Date(h.at * 1000).toLocaleTimeString()} · {h.script} · {h.verdict} ({h.passed ? "passed" : "not passed"})</li>)}</ul>}
         </motion.section>
-      <footer className="chapter-dark -mx-4 mt-4 rounded-t-3xl px-4 py-10 text-center">
-          <p className="display-huge">Prove the <span className="font-serif-accent text-[#7d9bff]">fix.</span></p>
+      <footer data-chapter-theme="dark" className="chapter-dark -mx-4 mt-4 rounded-t-3xl px-4 py-10 text-center">
+          <p className="display-huge">Prove the <span className="font-serif-accent text-[#6f8cff]">fix.</span></p>
           <p className="mt-4 font-mono text-xs text-dim">Built during the Meta Global AI Developer Hackathon · mode: {s.mode ?? "—"}{s.mode === "MOCK" ? " (simulated)" : ""} · MLDoctor web 0.1.0</p>
         </footer>
       </main>

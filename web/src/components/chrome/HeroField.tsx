@@ -10,7 +10,7 @@ import type { Verdict } from "@/lib/reducer";
 //   (run_index position, status color, peak_loss height). Nothing draws before
 //   its verify_progress event arrives. Verdict ring only from completion.
 const STATUS_COLOR: Record<string, string> = {
-  identical: "#2a9d8f", finite: "#7a9cc6", different: "#e8b64c", diverged: "#e86a6a",
+  identical: "#6f8cff", finite: "#6f8cff", different: "#ffb020", diverged: "#ff4d5e",
 };
 
 export default function HeroField({ runs, nTotal, verdict }: { runs: RunDatum[]; nTotal: number; verdict: Verdict | null }) {
@@ -45,7 +45,7 @@ export default function HeroField({ runs, nTotal, verdict }: { runs: RunDatum[];
         const peak = typeof r.peak_loss === "number" && isFinite(r.peak_loss) ? Math.min(r.peak_loss, 10) : 1;
         const bh = (Math.log10(peak + 1) / 1.05) * h * 0.16 + h * 0.03;
         const grad = ctx.createLinearGradient(0, h, 0, h - bh);
-        const c = STATUS_COLOR[r.status] ?? "#7a9cc6";
+        const c = STATUS_COLOR[r.status] ?? "#6f8cff";
         grad.addColorStop(0, c + "22");
         grad.addColorStop(1, c);
         ctx.fillStyle = grad;
@@ -59,7 +59,7 @@ export default function HeroField({ runs, nTotal, verdict }: { runs: RunDatum[];
       }
       // Verdict ring: only when the server completed verification.
       if (verdict) {
-        ctx.strokeStyle = verdict === "PASS" ? "#3ecf8e" : "#e86a6a";
+        ctx.strokeStyle = verdict === "PASS" ? "#19e3a0" : "#ff4d5e";
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 0.8);
         ctx.strokeRect(6, 6, w - 12, h - 12);

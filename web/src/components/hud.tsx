@@ -27,7 +27,7 @@ export function Hud({ s, conn = "open" }: { s: State; conn?: "connecting" | "ope
     try { localStorage.setItem("mldoctor-theme", next ? "dark" : "light"); } catch { /* ignore */ }
   }
   return (
-    <header className="sticky top-0 z-50 border-b border-line shadow-[0_1px_0_rgba(24,36,32,0.04),0_10px_30px_-18px_rgba(24,36,32,0.35)]" style={{ background: "var(--panel)" }}>
+    <header className="themed-chrome sticky top-0 z-50 border-b border-line shadow-[0_1px_0_rgba(24,36,32,0.04),0_10px_30px_-18px_rgba(24,36,32,0.35)]" style={{ background: "var(--panel)" }}>
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
           <strong className="flex items-center gap-2 tracking-tight">

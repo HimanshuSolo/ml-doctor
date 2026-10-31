@@ -10,7 +10,7 @@ export function HashGlyph({ hash, size = 20 }: { hash: string; size?: number }) 
   const filled: [number, number][] = [];
   cells.forEach((on, i) => { if (on) { const c = Math.floor(i / 5), r = i % 5; filled.push([c, r]); if (c < 2) filled.push([4 - c, r]); } });
   return (
-    <svg width={size} height={size} viewBox="0 0 5 5" aria-hidden="true" className="shrink-0 rounded-[2px]" style={{ background: "#0d1219" }}>
+    <svg width={size} height={size} viewBox="0 0 5 5" aria-hidden="true" className="shrink-0 rounded-[2px]" style={{ background: "#0b1020" }}>
       {filled.map(([x, y], i) => <rect key={i} x={x} y={y} width={1} height={1} fill={hashColor(hash)} />)}
     </svg>
   );
@@ -26,13 +26,13 @@ export function LossChart({ evidence, title }: { evidence: Evidence | null; titl
     <figure>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded border border-line bg-panel2" role="img" aria-label={title}>
         {evidence.loss_curves.map((c, i) => (
-          <polyline key={i} className="loss-line" fill="none" stroke={i === 0 ? "#2a9d8f" : `hsl(${204 + i * 18} 70% 62%)`} strokeWidth="2"
+          <polyline key={i} className="loss-line" fill="none" stroke={i === 0 ? "#6f8cff" : `hsl(${204 + i * 18} 70% 62%)`} strokeWidth="2"
             points={c.map((y, j) => `${(j / Math.max(maxLen - 1, 1)) * W},${y === null || !Number.isFinite(y) ? H : H - ((y - min) / Math.max(max - min, 1e-9)) * (H - 12) - 6}`).join(" ")} />
         ))}
-        {boom !== null && <g><line x1={(boom / Math.max(maxLen - 1, 1)) * W} y1="0" x2={(boom / Math.max(maxLen - 1, 1)) * W} y2={H} stroke="#e86a6a" strokeDasharray="4 3" /><text x={Math.min((boom / Math.max(maxLen - 1, 1)) * W + 6, W - 150)} y="16" fill="#e86a6a" fontSize="12" fontFamily="monospace">exploded at step {boom}</text></g>}
-        <text x="6" y="14" fill="#94a3b5" fontSize="10" fontFamily="monospace">peak {max.toFixed(3)}</text>
-        <text x="6" y={H - 6} fill="#94a3b5" fontSize="10" fontFamily="monospace">loss</text>
-        <text x={W - 70} y={H - 6} fill="#94a3b5" fontSize="10" fontFamily="monospace">step {maxLen - 1}</text>
+        {boom !== null && <g><line x1={(boom / Math.max(maxLen - 1, 1)) * W} y1="0" x2={(boom / Math.max(maxLen - 1, 1)) * W} y2={H} stroke="#ff4d5e" strokeDasharray="4 3" /><text x={Math.min((boom / Math.max(maxLen - 1, 1)) * W + 6, W - 150)} y="16" fill="#ff4d5e" fontSize="12" fontFamily="monospace">exploded at step {boom}</text></g>}
+        <text x="6" y="14" fill="#8b97b8" fontSize="10" fontFamily="monospace">peak {max.toFixed(3)}</text>
+        <text x="6" y={H - 6} fill="#8b97b8" fontSize="10" fontFamily="monospace">loss</text>
+        <text x={W - 70} y={H - 6} fill="#8b97b8" fontSize="10" fontFamily="monospace">step {maxLen - 1}</text>
       </svg>
       <figcaption className="mt-2 space-y-0.5 font-mono text-xs text-dim">
         <div>{title}: {evidence.loss_curves.length} run(s){boom !== null ? ` · diverged at step ${boom}` : ""}</div>
@@ -75,7 +75,7 @@ export function RunGrid({ nDone, nTotal, nFailed, runs, verdict }: { nDone: numb
             <div key={i} role="listitem" tabIndex={0} title={`run ${i}: ${run.status}, peak loss ${run.peak_loss ?? "—"}, final loss ${run.final_loss ?? "—"}`}
               className={`rounded border bg-panel2 p-2 text-center font-mono text-xs ${cls}`}>
               {i + 1} · {run.status}{bad ? " ✗" : verdict === "PASS" ? " ✓" : ""}
-              <span className="mt-1 flex items-center justify-center gap-1.5">{run.param_hash && <HashGlyph hash={run.param_hash} size={16} />}<span className="rounded px-1 text-black" style={{ background: run.param_hash ? hashColor(run.param_hash) : "#334155" }}>{run.param_hash ?? "no hash"}</span></span>
+              <span className="mt-1 flex items-center justify-center gap-1.5">{run.param_hash && <HashGlyph hash={run.param_hash} size={16} />}<span className="rounded px-1 text-black" style={{ background: run.param_hash ? hashColor(run.param_hash) : "#c9d4ec" }}>{run.param_hash ?? "no hash"}</span></span>
               <span className="mt-1 block text-[10px] text-dim">peak {run.peak_loss?.toFixed(3) ?? "—"}</span>
             </div>
           );

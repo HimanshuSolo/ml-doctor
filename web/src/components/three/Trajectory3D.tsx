@@ -28,8 +28,8 @@ export default function Trajectory3D({ evidence, paused }: { evidence: Evidence 
       <div style={{ height: 280 }} role="img" aria-label="3D parameter trajectory fan">
         <Canvas frameloop={paused ? "never" : "always"} dpr={[1, 1.5]} camera={{ position: [4, 3, 6], fov: 50 }}>
           <ambientLight intensity={0.8} /><directionalLight position={[4, 6, 5]} intensity={1.1} />
-          {scaled.slice(0, 20).map((run, i) => <Line key={i} pts={run} color={i === 0 ? "#5fb8a6" : "#8fb0d1"} />)}
-          <gridHelper args={[6, 6, "#1c2530", "#10161f"]} />
+          {scaled.slice(0, 20).map((run, i) => <Line key={i} pts={run} color={i === 0 ? "#6f8cff" : "#8b97b8"} />)}
+          <gridHelper args={[6, 6, "#1b2440", "#05070c"]} />
         </Canvas>
       </div>
       <p className="mt-1 font-mono text-xs text-dim">Random 3D projection of parameters; axes have no meaning. Lines fan apart before the patch, collapse after.</p>

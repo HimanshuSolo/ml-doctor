@@ -1,7 +1,8 @@
 // Colour derived from the real hash value itself (hex -> hue).
 export function hashColor(hash: string): string {
   const n = parseInt((hash || "0").slice(0, 6), 16);
-  return `hsl(${Number.isFinite(n) ? n % 360 : 0} 70% 45%)`;
+  const hue = 210 + ((Number.isFinite(n) ? n : 0) % 91); // 210-300 blue->magenta; green/red reserved for pass/fail
+  return `hsl(${hue} 70% 62%)`;
 }
 // 5x5 mirrored glyph cells derived only from the hash's own hex digits:
 // identical hashes render identical glyphs, different hashes almost never do.
