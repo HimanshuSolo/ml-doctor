@@ -1,8 +1,8 @@
 // Colour derived from the real hash value itself (hex -> hue).
 export function hashColor(hash: string): string {
   const n = parseInt((hash || "0").slice(0, 6), 16);
-  const hue = 210 + ((Number.isFinite(n) ? n : 0) % 91); // 210-300 blue->magenta; green/red reserved for pass/fail
-  return `hsl(${hue} 70% 62%)`;
+  const hue = 300 + ((Number.isFinite(n) ? n : 0) % 36); // 300-335 plum->magenta; green/red/ember reserved
+  return `hsl(${hue} 55% 64%)`;
 }
 // 5x5 mirrored glyph cells derived only from the hash's own hex digits:
 // identical hashes render identical glyphs, different hashes almost never do.
@@ -50,4 +50,35 @@ export function buildSummary(s: {
 }
 export function parseDiff(diff: string) {
   return diff.split("\n").map((text) => ({ text, kind: text.startsWith("+") && !text.startsWith("+++") ? "add" as const : text.startsWith("-") && !text.startsWith("---") ? "del" as const : "ctx" as const }));
+}
+
+// Plain-language patch story built only from reducer state (same source as ProofPanel).
+export function explainPatch(s: {
+  symptom: string | null; diagnosis: { culprit: string; fix_plan: string; reason: string } | null;
+  patchedPath: string | null; violations: string[]; verdict: "PASS" | "FAIL" | null;
+  verdictReason: string | null; firstStep: number | null; nDone: number; nTotal: number;
+  metricBefore: number | null; metricAfter: number | null; leakageBefore: number | null; leakageAfter: number | null;
+}): string | null {
+  if (!s.diagnosis) return null;
+  const bits = [
+    `The run was classified as ${s.symptom ?? "an unknown symptom"}.`,
+    `Root cause: ${s.diagnosis.culprit} -- ${s.diagnosis.reason}`,
+    `The patch${s.patchedPath ? ` (${s.patchedPath})` : ""} applies this fix: ${s.diagnosis.fix_plan}.`,
+  ];
+  if (s.firstStep !== null) bits.push(`Training first went wrong at step ${s.firstStep}.`);
+  if (s.leakageBefore !== null && s.leakageAfter !== null) bits.push(`Overlapping rows fell from ${s.leakageBefore} to ${s.leakageAfter}.`);
+  if (s.metricBefore !== null && s.metricAfter !== null) bits.push(`The honest metric moved from ${s.metricBefore.toFixed(4)} to ${s.metricAfter.toFixed(4)} (a drop is expected when leakage is removed).`);
+  if (s.verdict) bits.push(`Verification across ${s.nDone}/${s.nTotal} runs: ${s.verdict}${s.verdictReason ? ` -- ${s.verdictReason}` : ""}.`);
+  else if (s.violations.length) bits.push(`The anti-masking gate rejected it: ${s.violations.join("; ")}.`);
+  return bits.join(" ");
+}
+// Shareable run link payload: base64url of the Markdown summary (client-side only).
+export function encodeShare(summary: string): string {
+  return btoa(unescape(encodeURIComponent(summary))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+export function decodeShare(code: string): string | null {
+  try {
+    const b64 = code.replace(/-/g, "+").replace(/_/g, "/");
+    return decodeURIComponent(escape(atob(b64)));
+  } catch { return null; }
 }
