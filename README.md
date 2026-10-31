@@ -94,12 +94,6 @@ The gate rejects patches that: change epochs/dataset/model, wrap training in try
 
 CPU only; small single-file scripts; no GPU/distributed/notebooks. "Identical across N runs" is evidence, not proof of reproducibility. Controlled fixtures (`fixtures/healthy.py`, `repro.py`, `diverge.py`) are known-bug cases, not real-world validation. Live model path is text-only and unverified against Baseten.
 
-## 3-minute demo script
-
-1. (0:00) `mldoctor fix fixtures/repro.py` — watch it classify `non_reproducible`, patch, and pass 10-run verification.
-2. (1:00) `mldoctor serve` — run `diverge.py` in the dashboard; watch the live counter reach 5/5 seeds finite and the before/after loss curves.
-3. (2:00) Show a masking patch (e.g. `EPOCHS = 0`) rejected by the gate with no runs. Download the HTML report.
-
 ## Built during the hackathon
 
 Built during the Meta Global AI Developer Hackathon: harness, runner, mock/live model clients with budget and kill switch, verify gate, CLI, FastAPI dashboard with SSE, HTML reports, and the full test suite (fast + slow).
