@@ -1,0 +1,29 @@
+# MLDoctor reproducibility gate — fails the PR when training is not reproducible.
+# Copy this file into your own repo's .github/workflows/ and point CHECK_SCRIPT
+# at your training entry point. Proof bundles upload as artifacts for review.
+name: ml-reproducibility
+on:
+  pull_request:
+  workflow_dispatch:
+env:
+  CHECK_SCRIPT: fixtures/repro.py
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install MLDoctor
+        run: pip install ".[fixtures]"
+      - name: Reproducibility check (exit 0 only when reproducible and healthy)
+        run: mldoctor check "$CHECK_SCRIPT" --runs 3
+      - name: Proof bundle on failure
+        if: failure()
+        run: mldoctor fix "$CHECK_SCRIPT" --proof proof.json || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mldoctor-proof
+          path: proof.json
