@@ -23,3 +23,17 @@ describe("hash glyph generation (Stage 2)", () => {
     expect(glyphCells("ab")).toHaveLength(15);
   });
 });
+
+import { normalizeRuns } from "./helpers";
+describe("trajectory normalization", () => {
+  it("fits far-apart runs into a viewable ball", () => {
+    const { scaled, spread } = normalizeRuns([[[0, 0, 0], [1000, 0, 0]], [[0, 0, 0], [0, 1000, 0]]]);
+    expect(spread).toBeGreaterThan(0);
+    for (const p of scaled.flat()) for (const c of p) expect(Math.abs(c)).toBeLessThanOrEqual(2.51);
+  });
+  it("collapsed (healthy) runs stay finite with zero spread", () => {
+    const { scaled, spread } = normalizeRuns([[[1, 1, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, 1]]]);
+    expect(spread).toBe(0);
+    for (const p of scaled.flat()) for (const c of p) expect(Number.isFinite(c)).toBe(true);
+  });
+});
