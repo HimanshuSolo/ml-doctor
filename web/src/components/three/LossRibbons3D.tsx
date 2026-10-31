@@ -28,7 +28,7 @@ function Ribbon({ curve, index }: { curve: (number | null)[]; index: number }) {
     g.setIndex(idx); g.computeVertexNormals();
     return g;
   }, [curve, index]);
-  return <mesh geometry={geom}><meshStandardMaterial color={index === 0 ? "#6f8cff" : `hsl(${204 + index * 18}, 70%, 60%)`} side={THREE.DoubleSide} roughness={0.45} metalness={0.1} /></mesh>;
+  return <mesh geometry={geom}><meshStandardMaterial color={index === 0 ? "#ff8a5f" : `hsl(${204 + index * 18}, 70%, 60%)`} side={THREE.DoubleSide} roughness={0.45} metalness={0.1} /></mesh>;
 }
 export default function LossRibbons3D({ evidence, paused }: { evidence: Evidence | null; paused: boolean }) {
   if (!evidence?.loss_curves?.length) return <p className="text-dim text-sm">No telemetry yet for 3D.</p>;
@@ -37,7 +37,7 @@ export default function LossRibbons3D({ evidence, paused }: { evidence: Evidence
       <Canvas frameloop={paused ? "never" : "always"} dpr={[1, 1.5]} camera={{ position: [6, 4.5, 9], fov: 50 }}>
         <ambientLight intensity={0.7} /><directionalLight position={[5, 8, 5]} intensity={1.2} />
         {evidence.loss_curves.slice(0, 12).map((c, i) => <Ribbon key={i} curve={c} index={i} />)}
-        <gridHelper args={[10, 10, "#1b2440", "#05070c"]} position={[0, -0.02, 2]} />
+        <gridHelper args={[10, 10, "#3a322a", "#171310"]} position={[0, -0.02, 2]} />
         <Controls />
       </Canvas>
     </div>
