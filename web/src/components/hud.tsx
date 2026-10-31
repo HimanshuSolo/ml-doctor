@@ -14,17 +14,17 @@ export function stepIndex(s: State): number {
 }
 export function Hud({ s, conn = "open" }: { s: State; conn?: "connecting" | "open" | "error" }) {
   const active = stepIndex(s);
-  const [dark, setDark] = useState(false);
-  useEffect(() => {
-    let saved: string | null = null;
-    try { saved = localStorage.getItem("mldoctor-theme"); } catch { /* storage unavailable */ }
-    if (saved === "dark") { document.documentElement.dataset.theme = "dark"; const t = setTimeout(() => setDark(true), 0); return () => clearTimeout(t); }
+  const [mode, setMode] = useState<"dark" | "light">("dark");
+  useEffect(() => { // sync with the pre-paint script in layout.tsx
+    const cur = document.documentElement.dataset.mode === "light" ? "light" : "dark";
+    const t = setTimeout(() => setMode(cur), 0);
+    return () => clearTimeout(t);
   }, []);
   function toggle() {
-    const next = !dark;
-    setDark(next);
-    if (next) document.documentElement.dataset.theme = "dark"; else document.documentElement.removeAttribute("data-theme");
-    try { localStorage.setItem("mldoctor-theme", next ? "dark" : "light"); } catch { /* ignore */ }
+    const next = mode === "dark" ? "light" : "dark";
+    setMode(next);
+    document.documentElement.dataset.mode = next;
+    try { localStorage.setItem("mldoctor-theme", next); } catch { /* ignore */ }
   }
   return (
     <header className="themed-chrome sticky top-0 z-50 border-b border-line shadow-[0_1px_0_rgba(24,36,32,0.04),0_10px_30px_-18px_rgba(24,36,32,0.35)]" style={{ background: "var(--panel)" }}>
@@ -34,7 +34,7 @@ export function Hud({ s, conn = "open" }: { s: State; conn?: "connecting" | "ope
             <span aria-hidden="true" className="grid h-6 w-6 place-items-center rounded-md text-xs text-white" style={{ background: "var(--accent)" }}>M</span>
             MLDoctor
           </strong>
-          <button type="button" onClick={toggle} aria-pressed={dark} className="shrink-0 rounded-full border border-line px-3 py-1 font-mono text-xs text-dim transition-colors hover:text-ink xl:ml-0">{dark ? "☀ Light" : "☾ Dark"}</button>
+          <button type="button" onClick={toggle} aria-pressed={mode === "light"} className="shrink-0 rounded-full border border-line px-3 py-1 font-mono text-xs text-dim transition-colors hover:text-ink xl:ml-0">{mode === "dark" ? "☀ Light mode" : "☾ Dark mode"}</button>
           <span aria-label="Server mode" className={`rounded border px-2 py-0.5 font-mono text-xs ${s.mode === "LIVE" ? "border-amberx text-amberx" : s.mode === "MOCK" ? "border-tealx text-tealx" : "border-line text-dim"}`}>{s.mode ?? "MODE —"}</span>
           <span aria-label="Event stream connection" role="status" className={`rounded border px-2 py-0.5 font-mono text-xs ${conn === "open" ? "border-tealx text-tealx" : conn === "error" ? "border-redx text-redx" : "border-line text-dim"}`}>{conn === "open" ? "● SSE connected" : conn === "error" ? "● SSE disconnected" : "● SSE connecting…"}</span>
           {s.demoPacing && <span className="rounded border border-amberx px-2 py-0.5 font-mono text-xs text-amberx">DEMO PACING</span>}
