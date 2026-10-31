@@ -9,7 +9,7 @@ export default function Ticker({ s }: { s: State }) {
   return (
     <div className="themed-chrome overflow-hidden border-y border-line py-2" aria-label="Live event ticker">
       <div className="ticker-track flex w-max gap-8 whitespace-nowrap font-mono text-[11px] tracking-wider">
-        {row.map((t, i) => <span key={i}><span className="text-[#6f8cff]">◆</span> {t}</span>)}
+        {row.map((t, i) => <span key={i}><span className="text-[#ff8a5f]">◆</span> {t}</span>)}
       </div>
     </div>
   );
