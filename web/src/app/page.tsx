@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { initialState, reduce } from "@/lib/reducer";
 import type { ServerState } from "@/lib/events";
 import { API_BASE, apiUrl } from "@/lib/api";
-import { HashCells, LossChart, RunGrid } from "@/components/charts";
+import { HashCells, LossChart, OverlayChart, RunGrid } from "@/components/charts";
 import { EventLog, Hud, Odometer, stepIndex } from "@/components/hud";
 import { CubesGate, RibbonsGate, TrajectoryGate } from "@/components/three/Gated3D";
 import InvestigationPanel from "@/components/InvestigationPanel";
@@ -19,6 +19,9 @@ import VerdictMoment from "@/components/chrome/VerdictMoment";
 import PipelineTube from "@/components/chrome/PipelineTube";
 import PatchScanner from "@/components/PatchScanner";
 import ExperimentGraph from "@/components/ExperimentGraph";
+import TourBanner from "@/components/TourBanner";
+import SampleGallery from "@/components/SampleGallery";
+import { decodeShare } from "@/lib/helpers";
 import Reveal from "@/components/chrome/Reveal";
 import Rail from "@/components/chrome/Rail";
 
@@ -59,6 +62,14 @@ export default function Page() {
   const [needToken, setNeedToken] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
   const [beforeAfter, setBeforeAfter] = useState<"before" | "after">("before");
+  const [shared, setShared] = useState<string | null>(null);
+  useEffect(() => { // one-time mount check for an incoming shared-result link
+    const m = window.location.hash.match(/#r=([A-Za-z0-9\-_]+)/);
+    if (!m) return;
+    const text = decodeShare(m[1]);
+    const t = setTimeout(() => setShared(text), 0);
+    return () => clearTimeout(t);
+  }, []);
   const reduceMotion = useReducedMotion();
 
   // Ref of the current SSE connection so a pasted token re-connects cleanly.
@@ -174,6 +185,11 @@ export default function Page() {
       <Boot /><Cursor /><PersistentCanvas running={s.phase === "running"} /><VerdictMoment s={s} /><SmoothScroll activeStep={stepIndex(s)} />
       <Hud s={s} conn={conn} /><Ticker s={s} />
       <main className="mx-auto max-w-6xl space-y-10 px-4 py-6">
+        {shared && <div role="status" className="rounded-2xl border border-line bg-panel p-4">
+          <p className="label">Shared result (read-only snapshot from a link)</p>
+          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-5">{shared}</pre>
+          <button type="button" onClick={() => { setShared(null); history.replaceState(null, "", window.location.pathname); }} className="mt-2 font-mono text-xs text-dim underline underline-offset-4">Dismiss</button>
+        </div>}
         {s.error && <div role="alert" className="rounded border border-redx bg-redx/10 p-3 text-sm text-redx">{s.error}</div>}
         {needToken && (
           <form className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-panel p-3 text-sm" onSubmit={(e) => { e.preventDefault(); const t = tokenDraft.trim(); if (!t) return; sessionStorage.setItem("mldoctor-token", t); setNeedToken(false); setTokenDraft(""); connect(t); }}>
@@ -198,6 +214,7 @@ export default function Page() {
           <motion.p className="max-w-2xl text-dim"
             initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}>Reproduce, investigate, patch and verify a broken training script. Every number below comes from a server event — nothing is simulated.</motion.p>
+          <Reveal delay={0.05}><TourBanner onPlay={playDemo} /></Reveal>
           <Reveal delay={0.08}>
           <form className="grid gap-3 rounded-lg border border-line bg-panel p-5 shadow-[0_18px_45px_-28px_rgba(24,36,32,0.45)] sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void run(); }}>
             <div className="sm:col-span-2">
@@ -216,7 +233,7 @@ export default function Page() {
               <label><input type="checkbox" checked={investigate} onChange={(e) => setInvestigate(e.target.checked)} /> Investigate (experiment menu, max 3)</label>
               <label><input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} /> Vision (loss-curve image, opt-in)</label>
             </div>
-            <motion.button whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} type="submit" disabled={s.phase === "running"} className="magnetic rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_36px_rgba(47,91,255,0.45)] transition-opacity duration-150 hover:opacity-90 disabled:opacity-50" style={{ background: "#2F5BFF", color: "#fff" }}>{s.phase === "running" ? "Running…" : "Run pipeline"}</motion.button>
+            <motion.button whileHover={reduceMotion ? undefined : { scale: 1.02 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} type="submit" disabled={s.phase === "running"} className="magnetic rounded-full px-8 py-4 text-base font-semibold shadow-[0_0_36px_rgba(188,74,26,0.45)] transition-opacity duration-150 hover:opacity-90 disabled:opacity-50" style={{ background: "#BC4A1A", color: "#fff" }}>{s.phase === "running" ? "Running…" : "Run pipeline"}</motion.button>
             <div className="flex flex-col gap-1">
               <button type="button" onClick={playDemo} disabled={s.phase === "running"} className="rounded-md border border-tealx px-6 py-2 text-sm font-semibold text-tealx transition-colors duration-150 hover:bg-tealx/10 disabled:opacity-50">
                 {demoQueue.length > 0 ? `Playing demo… ${DEMO_SCRIPTS.length - demoQueue.length}/${DEMO_SCRIPTS.length}` : "▶ Play full demo (repro → diverge → healthy)"}</button>
@@ -230,7 +247,7 @@ export default function Page() {
         </motion.section>
         <section id="chapter-pipeline" aria-labelledby="h-pipe" data-chapter-theme="dark" className="chapter-dark -mx-4 rounded-3xl px-4 py-10" data-reveal>
           <p className="label">02 · The Pipeline</p>
-          <h2 id="h-pipe" className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Five stations. <span className="font-serif-accent text-[#6f8cff]">One truth.</span></h2>
+          <h2 id="h-pipe" className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Five stations. <span className="font-serif-accent text-[#ff8a5f]">One truth.</span></h2>
           <PipelineTube s={s} />
         </section>
 
@@ -240,6 +257,7 @@ export default function Page() {
             {(["before", "after"] as const).map((v) => <button key={v} type="button" aria-pressed={beforeAfter === v} onClick={() => setBeforeAfter(v)} className={`rounded border px-3 py-1 text-sm ${beforeAfter === v ? "border-bluex text-bluex" : "border-line text-dim"}`}>{v === "before" ? "Before patch" : "After patch"}</button>)}
           </div>
           <Reveal><LossChart evidence={evidence} title={beforeAfter === "before" ? "Baseline loss curves" : "Patched loss curves"} /></Reveal>
+          <Reveal delay={0.06}><OverlayChart before={s.evidenceBefore} after={s.evidenceAfter} /></Reveal>
           <Reveal delay={0.08}><HashCells evidence={evidence} title={beforeAfter === "before" ? "Baseline hash fingerprints" : "Patched hash fingerprints"} /></Reveal>
           <Reveal delay={0.05}><h3 className="label">Loss ribbons · 3D</h3></Reveal>
           <Reveal delay={0.1}><RibbonsGate evidence={evidence} /></Reveal>
@@ -289,7 +307,7 @@ export default function Page() {
               <RibbonsGate evidence={s.evidenceAfter ?? s.evidenceBefore} />
             </div>
           )}
-          <Reveal><ProofPanel s={s} /></Reveal>
+          <Reveal><ProofPanel s={s} getToken={() => tokenRef.current} /></Reveal>
         </motion.section>
 
         <motion.section {...section} id="chapter-proof" aria-labelledby="h-report" data-chapter-theme="light" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal>
@@ -298,10 +316,25 @@ export default function Page() {
             : <p className="text-dim text-sm">Report download appears after a run finishes.</p>}
           <h3 className="font-semibold">Run history (saved in this browser)</h3>
           {s.history.length === 0 ? <p className="text-dim text-sm">No completed runs yet.</p>
-            : <ul className="space-y-1 font-mono text-sm">{s.history.map((h, i) => <li key={i} className="rounded border border-line bg-panel px-3 py-2">{new Date(h.at * 1000).toLocaleTimeString()} · {h.script} · {h.verdict} ({h.passed ? "passed" : "not passed"})</li>)}</ul>}
+            : (<div className="space-y-2">
+              <table className="w-full font-mono text-sm">
+                <caption className="label pb-2 text-left">Trends per script (this browser)</caption>
+                <thead><tr className="text-left text-dim"><th>Script</th><th>Runs</th><th>Passed</th><th>Last</th></tr></thead>
+                <tbody>{Object.entries(s.history.reduce<Record<string, { n: number; p: number; last: string }>>((m, h) => {
+                  const e = m[h.script] ?? { n: 0, p: 0, last: h.verdict };
+                  e.n += 1; if (h.passed) e.p += 1; e.last = h.verdict; m[h.script] = e; return m;
+                }, {})).map(([script, r]) => <tr key={script} className="border-t border-line"><td>{script}</td><td>{r.n}</td><td>{r.p}</td><td>{r.last}</td></tr>)}</tbody>
+              </table>
+              <ul className="space-y-1 font-mono text-sm">{s.history.map((h, i) => <li key={i} className="rounded border border-line bg-panel px-3 py-2">{new Date(h.at * 1000).toLocaleTimeString()} · {h.script} · {h.verdict} ({h.passed ? "passed" : "not passed"})</li>)}</ul>
+            </div>)}
         </motion.section>
+      <section aria-labelledby="h-gallery" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal data-chapter-theme="light">
+          <p className="label">Sample reports</p>
+          <h2 id="h-gallery" className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Proof, <span className="font-serif-accent">before you run.</span></h2>
+          <SampleGallery />
+        </section>
       <footer data-chapter-theme="dark" className="chapter-dark -mx-4 mt-4 rounded-t-3xl px-4 py-10 text-center">
-          <p className="display-huge">Prove the <span className="font-serif-accent text-[#6f8cff]">fix.</span></p>
+          <p className="display-huge">Prove the <span className="font-serif-accent text-[#ff8a5f]">fix.</span></p>
           <p className="mt-4 font-mono text-xs text-dim">Built during the Meta Global AI Developer Hackathon · mode: {s.mode ?? "—"}{s.mode === "MOCK" ? " (simulated)" : ""} · MLDoctor web 0.1.0</p>
         </footer>
       </main>
