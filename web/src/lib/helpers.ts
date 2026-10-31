@@ -82,3 +82,26 @@ export function decodeShare(code: string): string | null {
     return decodeURIComponent(escape(atob(b64)));
   } catch { return null; }
 }
+
+// Fit 3D trajectory runs into a viewable ball: center on the bounding box,
+// scale the longest half-extent to FIT_R, guard fully-collapsed runs.
+export const TRAJ_FIT_R = 2.5;
+export function normalizeRuns(runs: [number, number, number][][]): { scaled: [number, number, number][][]; spread: number } {
+  const pts = runs.flat();
+  if (!pts.length) return { scaled: [], spread: 0 };
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts) for (let i = 0; i < 3; i++) {
+    if (!Number.isFinite(p[i])) continue;
+    lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]);
+  }
+  const center = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  const spread = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+  const half = Math.max((hi[0] - lo[0]) / 2, (hi[1] - lo[1]) / 2, (hi[2] - lo[2]) / 2, 1e-9);
+  const k = TRAJ_FIT_R / half;
+  return {
+    spread,
+    scaled: runs.map((run) => run.map((p) => [
+      (p[0] - center[0]) * k, (p[1] - center[1]) * k, (p[2] - center[2]) * k,
+    ] as [number, number, number])),
+  };
+}
