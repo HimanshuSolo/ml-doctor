@@ -1,0 +1,12 @@
+services:
+  mldoctor:
+    build: .
+    image: mldoctor
+    ports:
+      - "8765:8765"
+    # Token is printed on first start: docker compose logs mldoctor
+    # Optional LIVE mode (never bake keys into the image):
+    # environment:
+    #   MLDOCTOR_BASE_URL: "https://your-endpoint"
+    #   MLDOCTOR_MODEL: "your-model"
+    #   MLDOCTOR_API_KEY: "your-key"
