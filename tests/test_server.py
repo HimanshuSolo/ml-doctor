@@ -44,9 +44,15 @@ def test_save_script_roundtrip_and_guards(tmp_path):
     assert r.json()["script"] == os.path.join("uploads", "mine.py")
     assert (tmp_path / "uploads" / "mine.py").read_text() == "print('hi')"
     bad = [{"name": "../evil.py", "content": "x"}, {"name": "a.txt", "content": "x"},
-           {"name": "e.py", "content": "   "}, {"name": "big.py", "content": "x" * 200_001}]
+           {"name": "e.py", "content": "   "}, {"name": "big.py", "content": "x" * 200_001},
+           {"name": "a/../../b.py", "content": "x"}, {"name": ".hidden.py", "content": "x"},
+           {"name": "9lives.py", "content": "x"}, {"name": "sub/dir.py/x.py", "content": "x"}]
     for b in bad:
         assert app_client.post("/api/scripts", headers=H, json=b).status_code == 400
+    r = app_client.post("/api/scripts", headers=H, json={"name": "proj/models/mine.py", "content": "x=1"})
+    assert r.status_code == 200
+    assert r.json()["script"] == os.path.join("uploads", "proj", "models", "mine.py")
+    assert (tmp_path / "uploads" / "proj" / "models" / "mine.py").read_text() == "x=1"
 
 
 @pytest.mark.slow
