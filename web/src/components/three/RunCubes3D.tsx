@@ -22,7 +22,7 @@ function Cube({ run, i, verdict, onHover }: { run: RunDatum; i: number; verdict:
   const mesh = useRef<THREE.Mesh>(null);
   const bad = BAD.has(run.status);
   const targetRot = bad ? Math.PI : 0;
-  const color = bad ? "#ff4d5e" : verdict === "PASS" ? "#19e3a0" : run.param_hash ? hashColor(run.param_hash) : "#6f8cff";
+  const color = bad ? "#ff4d5e" : verdict === "PASS" ? "#19e3a0" : run.param_hash ? hashColor(run.param_hash) : "#ff8a5f";
   useFrame((_, dt) => { if (mesh.current) mesh.current.rotation.y += (targetRot - mesh.current.rotation.y) * Math.min(dt * 5, 1); });
   return (
     <mesh ref={mesh} position={[(i % 5) * 1.1 - 2.2, Math.floor(i / 5) * -1.1 + 0.6, 0]}
