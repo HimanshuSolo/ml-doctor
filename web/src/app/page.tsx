@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { initialState, reduce } from "@/lib/reducer";
+import { initialState, reduce, type Action } from "@/lib/reducer";
 import type { ServerState } from "@/lib/events";
 import { API_BASE, apiUrl } from "@/lib/api";
 import { HashCells, LossChart, OverlayChart, RunGrid } from "@/components/charts";
@@ -26,7 +26,15 @@ import Reveal from "@/components/chrome/Reveal";
 import Rail from "@/components/chrome/Rail";
 
 const DEMO_SCRIPTS = ["fixtures/repro.py", "fixtures/diverge.py", "fixtures/healthy.py"];
-const HISTORY_KEY = "mldoctor-history";
+
+// Server SQLite history loader (module-level: stable across renders).
+async function loadHistory(token: string, dispatch: React.Dispatch<Action>) {
+  try {
+    const r = await fetch(apiUrl("/api/history"), { headers: { "X-MLDoctor-Token": token } });
+    if (!r.ok) return;
+    dispatch({ kind: "hydrate_history", history: ((await r.json()).history ?? []) as never });
+  } catch { /* server history unavailable: show session-only state */ }
+}
 
 const TOKEN_KEY = "mldoctor-token";
 function hasToken(): boolean {
@@ -76,6 +84,7 @@ export default function Page() {
   const esRef = useRef<EventSource | null>(null);
   function connect(t: string) {
     tokenRef.current = t;
+    void loadHistory(t, dispatch);
     setConn("connecting");
     dispatch({ kind: "clear_error" });
     fetch(apiUrl("/api/state"), { headers: { "X-MLDoctor-Token": t } })
@@ -147,17 +156,15 @@ export default function Page() {
     // runScript reads live toggles via closure; queue advance keys only on phase.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase, demoQueue]);
-  // Persistent run history: hydrate once from localStorage, save on change.
-  // Only completed entries the server reported via pipeline_completed.
+  // Run history lives in the server's SQLite DB (survives restarts, shared
+  // across browsers). Only completed entries the server reported via
+  // pipeline_completed. Refresh on connect and after each finished run.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      if (raw) dispatch({ kind: "hydrate_history", history: JSON.parse(raw) });
-    } catch { /* corrupted storage: start empty, honestly */ }
-  }, []);
+    if (tokenRef.current) void loadHistory(tokenRef.current, dispatch);
+  }, [dispatch]);
   useEffect(() => {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(s.history.slice(-20))); } catch { /* storage full/blocked */ }
-  }, [s.history]);
+    if ((s.phase === "done" || s.phase === "failed") && tokenRef.current) void loadHistory(tokenRef.current, dispatch);
+  }, [s.phase, dispatch]);
 
   const hypotheses = useMemo(() => {
     const cards = [
@@ -314,18 +321,28 @@ export default function Page() {
           {heading("h-report", "Report")}
           {s.phase === "done" ? <button type="button" className="rounded-md px-4 py-2 font-semibold transition-opacity hover:opacity-90" style={{ background: "var(--accent)", color: "var(--panel)" }} onClick={async () => { const r = await fetch(apiUrl("/api/report"), { headers: { "X-MLDoctor-Token": tokenRef.current } }); if (!r.ok) return; const url = URL.createObjectURL(await r.blob()); const a = document.createElement("a"); a.href = url; a.download = "mldoctor-report.html"; a.click(); URL.revokeObjectURL(url); }}>Download HTML report</button>
             : <p className="text-dim text-sm">Report download appears after a run finishes.</p>}
-          <h3 className="font-semibold">Run history (saved in this browser)</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Run history (server database)</h3>
+            {s.history.length > 0 && <button type="button" onClick={async () => {
+              if (!window.confirm("Delete ALL recorded runs from the server database?")) return;
+              const r = await fetch(apiUrl("/api/history"), { method: "DELETE", headers: { "X-MLDoctor-Token": tokenRef.current } });
+              if (r.ok) dispatch({ kind: "hydrate_history", history: [] });
+            }} className="rounded-full border border-[#ff5252] px-3 py-1 font-mono text-xs text-[#ff5252] hover:opacity-80">Delete all history</button>}
+          </div>
           {s.history.length === 0 ? <p className="text-dim text-sm">No completed runs yet.</p>
             : (<div className="space-y-2">
               <table className="w-full font-mono text-sm">
-                <caption className="label pb-2 text-left">Trends per script (this browser)</caption>
+                <caption className="label pb-2 text-left">Trends per script (server database)</caption>
                 <thead><tr className="text-left text-dim"><th>Script</th><th>Runs</th><th>Passed</th><th>Last</th></tr></thead>
                 <tbody>{Object.entries(s.history.reduce<Record<string, { n: number; p: number; last: string }>>((m, h) => {
                   const e = m[h.script] ?? { n: 0, p: 0, last: h.verdict };
                   e.n += 1; if (h.passed) e.p += 1; e.last = h.verdict; m[h.script] = e; return m;
                 }, {})).map(([script, r]) => <tr key={script} className="border-t border-line"><td>{script}</td><td>{r.n}</td><td>{r.p}</td><td>{r.last}</td></tr>)}</tbody>
               </table>
-              <ul className="space-y-1 font-mono text-sm">{s.history.map((h, i) => <li key={i} className="rounded border border-line bg-panel px-3 py-2">{new Date(h.at * 1000).toLocaleTimeString()} · {h.script} · {h.verdict} ({h.passed ? "passed" : "not passed"})</li>)}</ul>
+              <ul className="space-y-1 font-mono text-sm">{s.history.map((h, i) => <li key={h.id ?? i} className="flex items-center justify-between gap-2 rounded border border-line bg-panel px-3 py-2"><span>{new Date(h.at * 1000).toLocaleTimeString()} · {h.script} · {h.verdict}{h.mode ? ` · ${h.mode}` : ""} ({h.passed ? "passed" : "not passed"})</span>{typeof h.id === "number" && <button type="button" aria-label={`Delete run ${h.script}`} onClick={async () => {
+                const r = await fetch(apiUrl(`/api/history/${h.id}`), { method: "DELETE", headers: { "X-MLDoctor-Token": tokenRef.current } });
+                if (r.ok && tokenRef.current) void loadHistory(tokenRef.current, dispatch);
+              }} className="shrink-0 rounded border border-line px-2 py-0.5 text-xs text-dim hover:text-[#ff5252]">✕</button>}</li>)}</ul>
             </div>)}
         </motion.section>
       <section aria-labelledby="h-gallery" className="chapter-light -mx-4 space-y-3 rounded-3xl px-4 py-8" data-reveal data-chapter-theme="light">
